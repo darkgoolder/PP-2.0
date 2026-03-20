@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Классификатор вагонов - WagonDetector</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚂 Классификатор вагонов</h1>
+            <p>Определение передней и задней части вагона по фотографии</p>
+        </header>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-content">
+                <div class="upload-icon">📸</div>
+                <h3>Загрузите изображение вагона</h3>
+                <p>Перетащите файл сюда или нажмите для выбора</p>
+                <p class="file-info">Поддерживаются: JPG, JPEG, PNG (до 10 MB)</p>
+                <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png" hidden>
+                <button class="btn btn-primary" id="selectFileBtn">Выбрать файл</button>
+            </div>
+        </div>
+
+        <div class="preview-area" id="previewArea" style="display: none;">
+            <div class="preview-image">
+                <img id="previewImg" alt="Предпросмотр">
+                <button class="btn-remove" id="removeImageBtn">✕</button>
+            </div>
+            <button class="btn btn-success" id="predictBtn">🔍 Распознать вагон</button>
+        </div>
+
+        <div class="results-area" id="resultsArea" style="display: none;">
+            <h3>Результат классификации</h3>
+            <div class="result-card">
+                <div class="result-class" id="resultClass"></div>
+                <div class="result-confidence" id="resultConfidence"></div>
+                <div class="probabilities" id="probabilities"></div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Обработка изображения...</p>
+        </div>
+
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
