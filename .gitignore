@@ -210,4 +210,4 @@ __marimo__/
 uploads/
 wagon_classification/
 wagon_data/
-
+models/best_model.pth/
