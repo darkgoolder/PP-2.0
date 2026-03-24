@@ -29,12 +29,27 @@
                 <img id="previewImg" alt="Предпросмотр">
                 <button class="btn-remove" id="removeImageBtn">✕</button>
             </div>
-            <button class="btn btn-success" id="predictBtn">🔍 Распознать вагон</button>
+            
+            <!-- ДОБАВЛЕНО: Поле для ввода типа вагона -->
+            <div class="wagon-type-input">
+                <label for="wagonType">Тип вагона:</label>
+                <input 
+                    type="text" 
+                    id="wagonType" 
+                    name="wagonType" 
+                    placeholder="Введите тип вагона: Крытый, Цистерна, Полувагон или Хоппер"
+                    autocomplete="off"
+                >
+                <small class="input-hint">Допустимые значения: Крытый, Цистерна, Полувагон, Хоппер</small>
+            </div>
+            
+            <button class="btn btn-success" id="predictBtn">🔍 Обработать</button>
         </div>
 
         <div class="results-area" id="resultsArea" style="display: none;">
             <h3>Результат классификации</h3>
             <div class="result-card">
+                <div class="wagon-type-display" id="wagonTypeDisplay"></div>
                 <div class="result-class" id="resultClass"></div>
                 <div class="result-confidence" id="resultConfidence"></div>
                 <div class="probabilities" id="probabilities"></div>
