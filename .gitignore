@@ -211,3 +211,6 @@ uploads/
 wagon_classification/
 wagon_data/
 models/best_model.pth
+.python-version
+main.py
+b.py
