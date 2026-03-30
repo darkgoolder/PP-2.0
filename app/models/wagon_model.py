@@ -3,6 +3,7 @@
 Загружает обученную модель и выполняет предсказания
 """
 
+from app.utils.metrics import record_prediction_metrics
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
@@ -59,6 +60,7 @@ class WagonClassifier:
         
         logger.info(f"Модель загружена. Классы: {self.class_names}")
     
+    
     def _load_model(self) -> nn.Module:
         """
         Загрузка модели из файла
@@ -66,6 +68,9 @@ class WagonClassifier:
         Returns:
             Загруженная модель в режиме evaluation
         """
+        import time  # <-- ДОБАВИТЬ
+        start_time = time.time()  # <-- ДОБАВИТЬ
+        
         # Создаем архитектуру модели (должна совпадать с train_model.py)
         model = models.efficientnet_b2(weights=None)
         in_features = model.classifier[1].in_features
@@ -91,7 +96,15 @@ class WagonClassifier:
         model = model.to(self.device)
         model.eval()
         
+        # Записываем время загрузки <-- ДОБАВИТЬ
+        load_time = time.time() - start_time
+        from app.utils.metrics import MODEL_LOADED, MODEL_LOAD_TIME
+        MODEL_LOADED.set(1)
+        MODEL_LOAD_TIME.set(load_time)
+        logger.info(f"Модель загружена за {load_time:.2f} секунд")
+        
         return model
+    
     
     def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
         """
@@ -115,15 +128,9 @@ class WagonClassifier:
         return input_tensor
     
     def predict(self, image: Image.Image) -> Tuple[str, float, Dict[str, float]]:
-        """
-        Предсказание для одного изображения
+        import time  # <-- ДОБАВИТЬ
+        start_time = time.time()  # <-- ДОБАВИТЬ
         
-        Args:
-            image: PIL Image
-            
-        Returns:
-            Tuple: (предсказанный_класс, уверенность, словарь_вероятностей)
-        """
         try:
             # Предобработка
             input_tensor = self._preprocess_image(image)
@@ -144,7 +151,16 @@ class WagonClassifier:
                     for i, class_name in enumerate(self.class_names)
                 }
             
-            logger.info(f"Предсказание: {predicted_class} с уверенностью {confidence:.2%}")
+            # Записываем метрики <-- ДОБАВИТЬ
+            duration = time.time() - start_time
+            record_prediction_metrics(
+                class_name=predicted_class,
+                confidence=confidence,
+                device=self.device,
+                duration=duration
+            )
+            
+            logger.info(f"Предсказание: {predicted_class} с уверенностью {confidence:.2%} (время: {duration:.3f}s)")
             
             return predicted_class, confidence, all_probs
             

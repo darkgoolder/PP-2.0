@@ -31,4 +31,5 @@ dependencies = [
     "unrar>=0.4",
     "uvicorn[standard]>=0.39.0",
     "winrar>=0.0.1",
+    "prometheus-client>=0.20.0",
 ]

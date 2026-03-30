@@ -24,4 +24,4 @@ python-magic
 pytest
 pytest-asyncio
 httpx
-
+prometheus-client
