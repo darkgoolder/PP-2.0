@@ -10,16 +10,78 @@ const resultsArea = document.getElementById('resultsArea');
 const loading = document.getElementById('loading');
 const errorMessage = document.getElementById('errorMessage');
 
+// НОВЫЙ ЭЛЕМЕНТ: Поле ввода типа вагона
+const wagonTypeInput = document.getElementById('wagonType');
+
 let currentFile = null;
 
 // API базовый URL
 const API_URL = window.location.origin + '/api/v1';
+
+// НОВАЯ ФУНКЦИЯ: Валидация типа вагона
+function validateWagonType(type) {
+    // Допустимые значения с большой буквы
+    const validTypes = ['Крытый', 'Цистерна', 'Полувагон', 'Хоппер'];
+    
+    // Проверяем введенное значение
+    if (!type || type.trim() === '') {
+        return {
+            isValid: false,
+            message: 'Пожалуйста, введите тип вагона'
+        };
+    }
+    
+    // Удаляем лишние пробелы
+    const trimmedType = type.trim();
+    
+    // Проверяем точное совпадение (с учетом регистра)
+    if (validTypes.includes(trimmedType)) {
+        return {
+            isValid: true,
+            message: null,
+            value: trimmedType
+        };
+    }
+    
+    // Проверка с учетом регистра (если пользователь ввел с маленькой буквы)
+    const lowerCaseValid = validTypes.map(v => v.toLowerCase());
+    if (lowerCaseValid.includes(trimmedType.toLowerCase())) {
+        // Находим правильное написание
+        const correctValue = validTypes[lowerCaseValid.indexOf(trimmedType.toLowerCase())];
+        return {
+            isValid: false,
+            message: `Неверный формат. Используйте: "${correctValue}" (с большой буквы)`
+        };
+    }
+    
+    return {
+        isValid: false,
+        message: `Неверное значение. Допустимые типы: ${validTypes.join(', ')}`
+    };
+}
+
+// НОВАЯ ФУНКЦИЯ: Очистка стилей ошибки
+function clearWagonTypeError() {
+    wagonTypeInput.classList.remove('error');
+}
+
+// НОВАЯ ФУНКЦИЯ: Показать ошибку валидации
+function showWagonTypeError(message) {
+    wagonTypeInput.classList.add('error');
+    showError(message);
+}
 
 // Обработчики событий
 selectFileBtn.addEventListener('click', () => fileInput.click());
 removeImageBtn.addEventListener('click', clearImage);
 predictBtn.addEventListener('click', predictImage);
 fileInput.addEventListener('change', handleFileSelect);
+
+// НОВЫЙ ОБРАБОТЧИК: Очистка ошибки при вводе
+wagonTypeInput.addEventListener('input', () => {
+    clearWagonTypeError();
+    hideError();
+});
 
 // Drag & Drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -68,6 +130,8 @@ function handleFile(file) {
         previewArea.style.display = 'block';
         resultsArea.style.display = 'none';
         hideError();
+        clearWagonTypeError(); // Очищаем ошибку при новой загрузке
+        wagonTypeInput.value = ''; // Очищаем поле ввода
     };
     reader.readAsDataURL(file);
 }
@@ -75,10 +139,12 @@ function handleFile(file) {
 function clearImage() {
     currentFile = null;
     fileInput.value = '';
+    wagonTypeInput.value = ''; // Очищаем поле ввода
     previewArea.style.display = 'none';
     uploadArea.style.display = 'block';
     resultsArea.style.display = 'none';
     hideError();
+    clearWagonTypeError();
 }
 
 async function predictImage() {
@@ -87,10 +153,24 @@ async function predictImage() {
         return;
     }
     
+    // НОВАЯ ПРОВЕРКА: Валидация типа вагона
+    const wagonType = wagonTypeInput.value;
+    const validation = validateWagonType(wagonType);
+    
+    if (!validation.isValid) {
+        showWagonTypeError(validation.message);
+        wagonTypeInput.focus();
+        return;
+    }
+    
     // Показываем загрузку
     loading.style.display = 'block';
     resultsArea.style.display = 'none';
     hideError();
+    clearWagonTypeError();
+    
+    // Сохраняем введенный тип вагона для отображения
+    const validatedWagonType = validation.value;
     
     // Создаем FormData
     const formData = new FormData();
@@ -109,8 +189,8 @@ async function predictImage() {
             throw new Error(data.error?.message || 'Ошибка при обработке');
         }
         
-        // Отображаем результаты
-        displayResults(data.data);
+        // Отображаем результаты с типом вагона
+        displayResults(data.data, validatedWagonType);
         
     } catch (error) {
         console.error('Error:', error);
@@ -120,19 +200,35 @@ async function predictImage() {
     }
 }
 
-function displayResults(data) {
+// НОВАЯ ФУНКЦИЯ: Отображение результатов с типом вагона
+function displayResults(data, wagonType) {
     const resultClass = document.getElementById('resultClass');
     const resultConfidence = document.getElementById('resultConfidence');
     const probabilitiesDiv = document.getElementById('probabilities');
+    const wagonTypeDisplay = document.getElementById('wagonTypeDisplay');
+    
+    // Отображаем тип вагона
+    wagonTypeDisplay.innerHTML = `
+        <strong>Тип вагона:</strong> ${wagonType}
+    `;
+    wagonTypeDisplay.classList.remove('error');
     
     // Определяем эмодзи для класса
     let emoji = '';
-    if (data.class === 'pered') emoji = '🚂 Передняя часть';
-    else if (data.class === 'zad') emoji = '🚂 Задняя часть';
-    else emoji = '⭕ Вагон не обнаружен';
+    let classText = '';
+    if (data.class === 'pered') {
+        emoji = '🚂';
+        classText = 'Передняя часть вагона';
+    } else if (data.class === 'zad') {
+        emoji = '🚂';
+        classText = 'Задняя часть вагона';
+    } else {
+        emoji = '⭕';
+        classText = 'Вагон не обнаружен';
+    }
     
     // Отображаем основной результат
-    resultClass.innerHTML = `${emoji}<br>${data.class_name}`;
+    resultClass.innerHTML = `${emoji} ${classText}<br><span style="font-size: 14px; color: #666;">${data.class_name}</span>`;
     resultConfidence.innerHTML = `Уверенность: <strong>${(data.confidence * 100).toFixed(1)}%</strong>`;
     
     // Отображаем все вероятности

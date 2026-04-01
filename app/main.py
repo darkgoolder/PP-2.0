@@ -2,6 +2,8 @@
 Основной файл приложения FastAPI
 """
 
+from app.utils.metrics import MetricsMiddleware, get_metrics
+from app.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -37,6 +39,12 @@ app = FastAPI(
         }
     ]
 )
+
+# Добавляем middleware для сбора метрик
+app.add_middleware(MetricsMiddleware)
+
+# Добавляем эндпоинт для метрик Prometheus
+app.add_api_route("/metrics", get_metrics, methods=["GET"], include_in_schema=False)
 
 # Настройка CORS
 app.add_middleware(
