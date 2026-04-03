@@ -2,6 +2,7 @@
 Основной файл приложения FastAPI
 """
 
+import torch  # <-- ДОБАВИТЬ ЭТУ СТРОКУ
 from app.utils.metrics import MetricsMiddleware, get_metrics
 from app.config import settings
 from fastapi import FastAPI
@@ -74,8 +75,35 @@ async def root():
         "message": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "docs": "/docs",
-        "health": f"{settings.API_V1_PREFIX}/health"
+        "health": "/health",
+        "api_health": f"{settings.API_V1_PREFIX}/health"
     }
+
+
+@app.get("/health")
+async def root_health_check():
+    """
+    Health check эндпоинт для Hugging Face Spaces
+    Проверяет состояние приложения и загрузку модели
+    """
+    try:
+        from app.models.wagon_model import get_classifier
+        classifier = get_classifier()
+        
+        return {
+            "status": "healthy",
+            "model_loaded": True,
+            "device": classifier.device,
+            "version": settings.VERSION
+        }
+    except Exception as e:
+        logger.warning(f"Health check failed: {e}")
+        return {
+            "status": "degraded",
+            "model_loaded": False,
+            "error": str(e),
+            "version": settings.VERSION
+        }
 
 
 @app.on_event("startup")
@@ -83,9 +111,16 @@ async def startup_event():
     """Загрузка модели при старте"""
     logger.info("=" * 50)
     logger.info(f"Запуск {settings.PROJECT_NAME} v{settings.VERSION}")
+    logger.info(f"Порт: {os.getenv('PORT', '7860')} (HF Spaces использует порт 7860)")
+    
+    # Проверяем доступность GPU (теперь torch импортирован)
+    gpu_available = torch.cuda.is_available() if hasattr(torch, 'cuda') else False
+    logger.info(f"Режим: {'GPU' if gpu_available else 'CPU'}")
     logger.info("=" * 50)
     
     # Проверяем существование модели
+    logger.info(f"Путь к модели: {settings.MODEL_PATH}")
+    
     if not os.path.exists(settings.MODEL_PATH):
         logger.warning(f"⚠️ Модель не найдена: {settings.MODEL_PATH}")
         logger.info("Пожалуйста, обучите модель командой: python train_model.py")
@@ -96,8 +131,11 @@ async def startup_event():
             classifier = get_classifier()
             logger.info(f"✅ Модель загружена на устройство: {classifier.device}")
             logger.info(f"📋 Доступные классы: {classifier.class_names}")
+            logger.info(f"📋 Русские названия: {classifier.class_names_ru}")
         except Exception as e:
             logger.error(f"❌ Ошибка при загрузке модели: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
 
 @app.on_event("shutdown")
@@ -106,11 +144,13 @@ async def shutdown_event():
     logger.info("Остановка API сервиса")
 
 
+# БЛОК ДЛЯ ЛОКАЛЬНОГО ЗАПУСКА
 if __name__ == "__main__":
     import uvicorn
+    port = int(os.getenv("PORT", 8000))
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=True
     )
