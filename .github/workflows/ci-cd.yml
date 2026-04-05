@@ -71,8 +71,25 @@ jobs:
       - name: Create directories for tests
         run: |
           mkdir -p models uploads
-          # Создаем dummy модель если нужно для тестов
-          touch models/best_model.pth || echo "Model will be created during training"
+      
+      - name: Create dummy model for tests  # ДОБАВИТЬ ЭТОТ ШАГ
+        run: |
+          python -c "
+            import torch
+            import torch.nn as nn
+            # Создаем простую модель для тестов
+            model = nn.Sequential(
+                nn.Linear(3*224*224, 128),
+                nn.ReLU(),
+                nn.Linear(128, 3)
+            )
+            checkpoint = {
+                'model_state_dict': model.state_dict(),
+                'class_names': ['pered', 'zad', 'none']
+            }
+            torch.save(checkpoint, 'models/best_model.pth')
+            print('✅ Dummy model created')
+          "
       
       - name: Run tests with coverage
         run: |
@@ -80,12 +97,6 @@ jobs:
         env:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth
-      
-      - name: Upload coverage to Codecov (опционально)
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
 
   # JOB 3: Сборка Docker образа
   docker-build:
