@@ -3,7 +3,6 @@
 """
 import pytest
 import torch
-import numpy as np
 from PIL import Image
 import sys
 from pathlib import Path
@@ -11,7 +10,7 @@ from pathlib import Path
 # Добавляем корневую папку проекта в путь
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.models.wagon_model import WagonClassifier, get_classifier
+from app.models.wagon_model import WagonClassifier
 from app.config import settings
 
 
