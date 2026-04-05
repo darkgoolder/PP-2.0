@@ -1,6 +1,7 @@
 """Тест совместимости фиктивной модели"""
 
 import pytest
+
 # import torch  # noqa: F401
 from PIL import Image
 import sys
