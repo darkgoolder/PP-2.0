@@ -11,7 +11,7 @@ from PIL import Image
 import os
 import logging
 import time  # <-- ДОБАВЛЕНО: импорт time
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional  # Добавьте Optional сюда
 
 logger = logging.getLogger(__name__)
 
