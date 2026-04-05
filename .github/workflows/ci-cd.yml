@@ -87,7 +87,7 @@ jobs:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth
 
-  # JOB 3: Сборка Docker образа
+# JOB 3: Сборка Docker образа
   docker-build:
     runs-on: ubuntu-latest
     needs: test
@@ -111,11 +111,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE_NAME }}
+          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/${{ env.DOCKER_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=sha,prefix={{date:'YYYYMMDD'}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
