@@ -22,7 +22,9 @@ class WagonClassifier:
     Загружает обученную модель и выполняет инференс
     """
 
-    def __init__(self, model_path: str, class_names: List[str], device: Optional[str] = None):
+    def __init__(
+        self, model_path: str, class_names: List[str], device: Optional[str] = None
+    ):
         """
         Инициализация классификатора
 
@@ -227,7 +229,7 @@ def get_classifier() -> WagonClassifier:
 
         _classifier_instance = WagonClassifier(
             model_path=str(settings.MODEL_PATH),  # str() преобразует Path в строку
-            class_names=settings.CLASS_NAMES
+            class_names=settings.CLASS_NAMES,
         )
 
     return _classifier_instance
