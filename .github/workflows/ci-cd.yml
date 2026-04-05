@@ -72,18 +72,13 @@ jobs:
         run: |
           mkdir -p models uploads
 
-      - name: Install system dependencies for model creation
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
-
       - name: Create dummy model for tests
         run: python scripts/create_dummy_model.py
 
       - name: Verify model file
         run: |
           ls -la models/
-          python -c "import torch; ckpt = torch.load('models/best_model.pth', map_location='cpu'); print('Keys:', ckpt.keys()); print('Model valid')"
+          python -c "import torch; ckpt = torch.load('models/best_model.pth', map_location='cpu'); print('Keys:', list(ckpt.keys()))"
 
       - name: Run tests with coverage
         run: |
