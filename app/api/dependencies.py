@@ -2,7 +2,7 @@
 Зависимости для API маршрутов
 """
 
-from fastapi import Request, HTTPException, status
+from fastapi import HTTPException, status
 from app.models.wagon_model import get_classifier
 
 
@@ -13,11 +13,11 @@ async def verify_model_loaded():
         if classifier.model is None:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Модель не загружена"
+                detail="Модель не загружена",
             )
         return classifier
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Ошибка загрузки модели: {str(e)}"
+            detail=f"Ошибка загрузки модели: {str(e)}",
         )
