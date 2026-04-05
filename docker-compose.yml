@@ -4,19 +4,18 @@ services:
   api:
     build: .
     ports:
-      - "7860:7860"  # Изменено с 8000 на 7860 для единообразия с HF Spaces
+      - "8000:8000"
     volumes:
-      - ./models:/home/user/app/models  # Обновлен путь для Docker
-      - ./uploads:/home/user/app/uploads
-      - ./app:/home/user/app/app
-      - ./logs:/home/user/app/logs
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+      - ./app:/app/app
+      - ./logs:/app/logs
     environment:
-      - MODEL_PATH=/home/user/app/models/best_model.pth  # Обновлен путь
+      - MODEL_PATH=/app/models/best_model.pth
       - LOG_LEVEL=INFO
-      - PORT=7860
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]  # Порт изменен
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3

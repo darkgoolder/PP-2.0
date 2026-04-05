@@ -210,7 +210,7 @@ __marimo__/
 uploads/
 wagon_classification/
 wagon_data/
-# models/best_model.pth
+models/best_model.pth
 .python-version
 main.py
 b.py

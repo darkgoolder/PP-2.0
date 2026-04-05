@@ -1,57 +1,50 @@
-# Используем Python 3.9-slim (Debian Bookworm - более стабильная версия)
-FROM python:3.9-slim
+# Многостадийная сборка для оптимизации
+FROM python:3.9-slim as builder  # ← ИЗМЕНЕНО: 3.10 → 3.9
 
-# Создаем пользователя с UID 1000 (требование HF Spaces)
-RUN useradd -m -u 1000 user
+WORKDIR /app
 
-# Устанавливаем системные зависимости
+# Установка системных зависимостей
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libgl1 \
+    libgl1-mesa-glx \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Переключаемся на пользователя
-USER user
-
-# Устанавливаем домашнюю директорию
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
-
-# Устанавливаем рабочую директорию
-WORKDIR $HOME/app
+# Установка uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Копируем зависимости
-COPY --chown=user requirements.txt .
+COPY pyproject.toml uv.lock requirements.txt ./
+RUN uv pip install --system --no-cache -r requirements.txt
 
-# Устанавливаем Python зависимости
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Финальный образ
+FROM python:3.9-slim  # ← ИЗМЕНЕНО: 3.10 → 3.9
 
-# Копируем все файлы приложения
-COPY --chown=user . .
+WORKDIR /app
 
-# Создаем необходимые папки
-RUN mkdir -p models uploads
+# Копируем зависимости из builder
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Устанавливаем переменные окружения
-ENV MODEL_PATH=/home/user/app/models/best_model.pth \
-    LOG_LEVEL=INFO \
-    PYTHONUNBUFFERED=1 \
-    PORT=7860
+# Копируем код приложения
+COPY app/ ./app/
+COPY models/ ./models/
+COPY uploads/ ./uploads/
 
-# Открываем порт (HF Spaces требует 7860)
-EXPOSE 7860
+# Копируем статические файлы
+COPY app/static/ ./app/static/
 
-# Healthcheck для HF Spaces
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:7860/health || exit 1
+# Переменные окружения
+ENV PYTHONPATH=/app
+ENV ENVIRONMENT=production
 
-# Запускаем приложение на порту 7860
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Открываем порт
+EXPOSE 8000
+
+# Здоровье проверка
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/health')" || exit 1
+
+# Запуск приложения
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

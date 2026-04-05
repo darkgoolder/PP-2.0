@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms
-import torch.cuda.amp as amp
 import os
 import shutil
 import numpy as np
@@ -14,25 +13,27 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
 import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 
 # ================================================
 # ВКЛЮЧАЕМ ОБРАБОТКУ УСЕЧЕННЫХ ИЗОБРАЖЕНИЙ
 # ================================================
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # Разрешаем загрузку усеченных изображений
 
+
 # ================================================
 # КОНФИГУРАЦИЯ (С ПРАВИЛЬНЫМИ НАЗВАНИЯМИ КЛАССОВ)
 # ================================================
 class Config:
     # Пути (изменены для Windows)
-    BASE_DIR = os.path.join(os.getcwd(), 'wagon_classification')
-    DATA_DIR = os.path.join(os.getcwd(), 'wagon_classification', 'data', 'processed')
-    EXTRACTED_DIR = os.path.join(os.getcwd(), 'wagon_data', 'extracted')
-    MODEL_SAVE_PATH = os.path.join(os.getcwd(), 'models', 'best_model.pth')
+    BASE_DIR = os.path.join(os.getcwd(), "wagon_classification")
+    DATA_DIR = os.path.join(os.getcwd(), "wagon_classification", "data", "processed")
+    EXTRACTED_DIR = os.path.join(os.getcwd(), "wagon_data", "extracted")
+    MODEL_SAVE_PATH = os.path.join(os.getcwd(), "models", "best_model.pth")
 
     # Параметры - ИСПРАВЛЕНО: pered вместо prered
-    CLASS_NAMES = ['pered', 'zad', 'none']  # Изменено prered -> pered
+    CLASS_NAMES = ["pered", "zad", "none"]  # Изменено prered -> pered
     NUM_CLASSES = 3
 
     # Гиперпараметры
@@ -40,18 +41,21 @@ class Config:
     NUM_EPOCHS = 15
 
     # Устройство
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     @staticmethod
     def print_info():
-        print(f"\n📊 КОНФИГУРАЦИЯ:")
+        print("\n📊 КОНФИГУРАЦИЯ:")
         print(f"  • Устройство: {Config.DEVICE}")
-        if Config.DEVICE.type == 'cuda':
+        if Config.DEVICE.type == "cuda":
             print(f"  • GPU: {torch.cuda.get_device_name(0)}")
-            print(f"  • Память: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+            print(
+                f"  • Память: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
+            )
         print(f"  • Классы: {Config.CLASS_NAMES}")
         print(f"  • Batch size: {Config.BATCH_SIZE}")
         print(f"  • Эпох: {Config.NUM_EPOCHS}")
+
 
 # ================================================
 # УТИЛИТЫ ДЛЯ РАБОТЫ С ИЗОБРАЖЕНИЯМИ
@@ -69,30 +73,31 @@ def load_image_safe(image_path, target_size=(224, 224)):
         image = Image.open(image_path)
 
         # Конвертируем в RGB если нужно
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        if image.mode != "RGB":
+            image = image.convert("RGB")
 
         # Проверяем размеры
         if image.size[0] == 0 or image.size[1] == 0:
             print(f"⚠ Изображение {image_path} имеет нулевые размеры")
             # Создаем черное изображение
-            image = Image.new('RGB', target_size, color='black')
+            image = Image.new("RGB", target_size, color="black")
 
         return image
 
     except (IOError, OSError, Image.DecompressionBombError) as e:
         print(f"⚠ Ошибка загрузки {image_path}: {e}")
         # Создаем черное изображение в случае ошибки
-        return Image.new('RGB', target_size, color='black')
+        return Image.new("RGB", target_size, color="black")
 
     except Exception as e:
         print(f"⚠ Неизвестная ошибка при загрузке {image_path}: {e}")
-        return Image.new('RGB', target_size, color='black')
+        return Image.new("RGB", target_size, color="black")
+
 
 def repair_image_file(image_path):
     """Пытается восстановить поврежденный файл изображения"""
     try:
-        with open(image_path, 'rb') as f:
+        with open(image_path, "rb") as f:
             data = f.read()
 
         # Проверяем, что файл не пустой
@@ -101,12 +106,12 @@ def repair_image_file(image_path):
             return False
 
         # Пытаемся восстановить как JPEG
-        if image_path.lower().endswith('.jpg') or image_path.lower().endswith('.jpeg'):
+        if image_path.lower().endswith(".jpg") or image_path.lower().endswith(".jpeg"):
             # Добавляем маркер конца JPEG если нужно
-            if not data.endswith(b'\xff\xd9'):
+            if not data.endswith(b"\xff\xd9"):
                 print(f"⚠ Восстанавливаю JPEG файл {image_path}")
-                data += b'\xff\xd9'
-                with open(image_path, 'wb') as f:
+                data += b"\xff\xd9"
+                with open(image_path, "wb") as f:
                     f.write(data)
                 return True
 
@@ -116,31 +121,35 @@ def repair_image_file(image_path):
         print(f"❌ Ошибка при восстановлении {image_path}: {e}")
         return False
 
+
 # ================================================
 # ТРАНСФОРМАЦИИ (ПРОСТЫЕ И РАБОЧИЕ)
 # ================================================
 def get_transforms():
     """Создание простых и рабочих трансформаций"""
     # Обучающие трансформации
-    train_transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.RandomCrop(224),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                           std=[0.229, 0.224, 0.225])
-    ])
+    train_transform = transforms.Compose(
+        [
+            transforms.Resize((256, 256)),
+            transforms.RandomCrop(224),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     # Валидационные трансформации
-    val_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                           std=[0.229, 0.224, 0.225])
-    ])
+    val_transform = transforms.Compose(
+        [
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     return train_transform, val_transform
+
 
 # ================================================
 # ПОДГОТОВКА ДАННЫХ (С ПРАВИЛЬНЫМИ ИМЕНАМИ ПАПОК)
@@ -160,10 +169,10 @@ def prepare_data_simple():
     print("\n📤 ШАГ 1: Укажите путь к архиву vagon1.rar")
     print("Пример: C:/Users/Username/Downloads/vagon1.rar")
     archive_path = input("Введите полный путь к архиву: ").strip()
-    
+
     # Заменяем прямые слеши на обратные для Windows
-    archive_path = archive_path.replace('/', '\\')
-    
+    archive_path = archive_path.replace("/", "\\")
+
     if not os.path.exists(archive_path):
         print(f"\n❌ Файл не найден: {archive_path}")
         return False
@@ -173,6 +182,7 @@ def prepare_data_simple():
     # Распаковываем с использованием patool (кроссплатформенный)
     try:
         import patoolib
+
         print("📦 Распаковка архива...")
         patoolib.extract_archive(archive_path, outdir=Config.EXTRACTED_DIR)
         print("✅ Архив распакован")
@@ -190,9 +200,9 @@ def prepare_data_simple():
 
     # Список возможных имен папок (учитываем опечатки)
     possible_folders = {
-        'pered': ['pered', 'prered', 'peredn', 'peredniy', 'front', 'перед'],
-        'zad': ['zad', 'zadn', 'zadniy', 'back', 'rear', 'зад'],
-        'none': ['none', 'non', 'empty', 'нет', 'пусто']
+        "pered": ["pered", "prered", "peredn", "peredniy", "front", "перед"],
+        "zad": ["zad", "zadn", "zadniy", "back", "rear", "зад"],
+        "none": ["none", "non", "empty", "нет", "пусто"],
     }
 
     actual_folders = os.listdir(Config.EXTRACTED_DIR)
@@ -214,17 +224,20 @@ def prepare_data_simple():
         for folder in actual_folders:
             folder_path = os.path.join(Config.EXTRACTED_DIR, folder)
             if os.path.isdir(folder_path):
-                images = [f for f in os.listdir(folder_path)
-                         if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                images = [
+                    f
+                    for f in os.listdir(folder_path)
+                    if f.lower().endswith((".jpg", ".jpeg", ".png"))
+                ]
                 if images:
                     print(f"  Папка '{folder}': {len(images)} изображений")
                     # Пробуем угадать класс
-                    if 'pered' in folder.lower() or 'перед' in folder.lower():
-                        folder_mapping['pered'] = folder
-                    elif 'zad' in folder.lower() or 'зад' in folder.lower():
-                        folder_mapping['zad'] = folder
-                    elif 'none' in folder.lower() or 'нет' in folder.lower():
-                        folder_mapping['none'] = folder
+                    if "pered" in folder.lower() or "перед" in folder.lower():
+                        folder_mapping["pered"] = folder
+                    elif "zad" in folder.lower() or "зад" in folder.lower():
+                        folder_mapping["zad"] = folder
+                    elif "none" in folder.lower() or "нет" in folder.lower():
+                        folder_mapping["none"] = folder
 
     # Проверяем, что нашли все необходимые классы
     missing_classes = []
@@ -244,7 +257,7 @@ def prepare_data_simple():
 
     # Создаем структуру
     print("\n📁 Создание структуры train/val...")
-    for split in ['train', 'val']:
+    for split in ["train", "val"]:
         for cls in Config.CLASS_NAMES:
             os.makedirs(os.path.join(Config.DATA_DIR, split, cls), exist_ok=True)
 
@@ -259,8 +272,11 @@ def prepare_data_simple():
             print(f"⚠ Папка {source_folder} не найдена, пропускаем")
             continue
 
-        images = [f for f in os.listdir(source_dir)
-                 if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+        images = [
+            f
+            for f in os.listdir(source_dir)
+            if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        ]
 
         if not images:
             print(f"⚠ В папке {source_folder} нет изображений")
@@ -270,22 +286,20 @@ def prepare_data_simple():
         print(f"  Найдено {len(images)} изображений")
 
         # Разделяем
-        train_imgs, val_imgs = train_test_split(
-            images, test_size=0.2, random_state=42
-        )
+        train_imgs, val_imgs = train_test_split(images, test_size=0.2, random_state=42)
 
         # Копируем train
         print(f"  Копируем {len(train_imgs)} в train...")
         for img in tqdm(train_imgs, desc=f"  {target_class} train"):
             src = os.path.join(source_dir, img)
-            dst = os.path.join(Config.DATA_DIR, 'train', target_class, img)
+            dst = os.path.join(Config.DATA_DIR, "train", target_class, img)
             shutil.copy2(src, dst)
 
         # Копируем val
         print(f"  Копируем {len(val_imgs)} в val...")
         for img in tqdm(val_imgs, desc=f"  {target_class} val"):
             src = os.path.join(source_dir, img)
-            dst = os.path.join(Config.DATA_DIR, 'val', target_class, img)
+            dst = os.path.join(Config.DATA_DIR, "val", target_class, img)
             shutil.copy2(src, dst)
 
         total_images += len(images)
@@ -295,26 +309,33 @@ def prepare_data_simple():
     print(f"\n✅ Готово! Всего {total_images} изображений")
     print("\n📂 Финальная структура данных:")
 
-    for split in ['train', 'val']:
+    for split in ["train", "val"]:
         split_total = 0
         print(f"\n  {split.upper()}:")
         for cls in Config.CLASS_NAMES:
             cls_dir = os.path.join(Config.DATA_DIR, split, cls)
             if os.path.exists(cls_dir):
-                count = len([f for f in os.listdir(cls_dir)
-                           if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+                count = len(
+                    [
+                        f
+                        for f in os.listdir(cls_dir)
+                        if f.lower().endswith((".jpg", ".jpeg", ".png"))
+                    ]
+                )
                 print(f"    {cls}: {count} изображений")
                 split_total += count
         print(f"    Всего: {split_total}")
 
     return True
 
+
 # ================================================
 # ДАТАСЕТ С ОБРАБОТКОЙ ПОВРЕЖДЕННЫХ ИЗОБРАЖЕНИЙ
 # ================================================
 class RobustWagonDataset(Dataset):
     """Надежный датасет с обработкой поврежденных изображений"""
-    def __init__(self, data_dir, transform=None, mode='train'):
+
+    def __init__(self, data_dir, transform=None, mode="train"):
         self.image_paths = []
         self.labels = []
         self.transform = transform
@@ -327,8 +348,11 @@ class RobustWagonDataset(Dataset):
                 print(f"⚠ Папка {class_dir} не найдена!")
                 continue
 
-            images = [f for f in os.listdir(class_dir)
-                     if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            images = [
+                f
+                for f in os.listdir(class_dir)
+                if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            ]
 
             for img in images:
                 self.image_paths.append(os.path.join(class_dir, img))
@@ -352,29 +376,30 @@ class RobustWagonDataset(Dataset):
 
         return image, self.labels[idx]
 
+
 # ================================================
 # МОДЕЛЬ
 # ================================================
 def create_simple_model():
     """Создание простой модели"""
     # Используем EfficientNet-B2 как компромисс между скоростью и точностью
-    model = models.efficientnet_b2(weights='DEFAULT')
+    model = models.efficientnet_b2(weights="DEFAULT")
 
     # Заменяем классификатор
     in_features = model.classifier[1].in_features
     model.classifier = nn.Sequential(
-        nn.Dropout(p=0.3),
-        nn.Linear(in_features, Config.NUM_CLASSES)
+        nn.Dropout(p=0.3), nn.Linear(in_features, Config.NUM_CLASSES)
     )
 
     return model.to(Config.DEVICE)
+
 
 # ================================================
 # ОБУЧЕНИЕ (РАБОЧАЯ ВЕРСИЯ)
 # ================================================
 def train_simple_model():
     """Простая и рабочая функция обучения"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🏋️‍♂️ НАЧИНАЕМ ОБУЧЕНИЕ")
     print("=" * 60)
 
@@ -390,15 +415,11 @@ def train_simple_model():
     # Создаем датасеты
     print("\n📥 Загрузка данных...")
     train_dataset = RobustWagonDataset(
-        Config.DATA_DIR,
-        transform=train_transform,
-        mode='train'
+        Config.DATA_DIR, transform=train_transform, mode="train"
     )
 
     val_dataset = RobustWagonDataset(
-        Config.DATA_DIR,
-        transform=val_transform,
-        mode='val'
+        Config.DATA_DIR, transform=val_transform, mode="val"
     )
 
     if len(train_dataset) == 0:
@@ -411,7 +432,7 @@ def train_simple_model():
         batch_size=Config.BATCH_SIZE,
         shuffle=True,
         num_workers=0,  # 0 для Windows чтобы избежать проблем
-        pin_memory=True if torch.cuda.is_available() else False
+        pin_memory=True if torch.cuda.is_available() else False,
     )
 
     val_loader = DataLoader(
@@ -419,7 +440,7 @@ def train_simple_model():
         batch_size=Config.BATCH_SIZE,
         shuffle=False,
         num_workers=0,  # 0 для Windows чтобы избежать проблем
-        pin_memory=True if torch.cuda.is_available() else False
+        pin_memory=True if torch.cuda.is_available() else False,
     )
 
     # Создаем модель
@@ -432,16 +453,13 @@ def train_simple_model():
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
     # История обучения
-    history = {
-        'train_loss': [], 'train_acc': [],
-        'val_loss': [], 'val_acc': []
-    }
+    history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
 
     best_val_acc = 0.0
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("🏁 НАЧАЛО ОБУЧЕНИЯ")
-    print("="*50)
+    print("=" * 50)
 
     for epoch in range(Config.NUM_EPOCHS):
         print(f"\n📅 ЭПОХА {epoch + 1}/{Config.NUM_EPOCHS}")
@@ -452,7 +470,7 @@ def train_simple_model():
         train_correct = 0
         train_total = 0
 
-        train_bar = tqdm(train_loader, desc='Training')
+        train_bar = tqdm(train_loader, desc="Training")
         for images, labels in train_bar:
             # Перемещаем данные на GPU
             images = images.to(Config.DEVICE)
@@ -474,10 +492,12 @@ def train_simple_model():
             train_correct += predicted.eq(labels).sum().item()
 
             # Обновляем прогресс-бар
-            train_bar.set_postfix({
-                'Loss': f'{loss.item():.4f}',
-                'Acc': f'{100.*train_correct/train_total:.1f}%'
-            })
+            train_bar.set_postfix(
+                {
+                    "Loss": f"{loss.item():.4f}",
+                    "Acc": f"{100.*train_correct/train_total:.1f}%",
+                }
+            )
 
         # Средние значения за эпоху
         avg_train_loss = train_loss / len(train_loader)
@@ -492,7 +512,7 @@ def train_simple_model():
         all_labels = []
 
         with torch.no_grad():
-            val_bar = tqdm(val_loader, desc='Validation')
+            val_bar = tqdm(val_loader, desc="Validation")
             for images, labels in val_bar:
                 images = images.to(Config.DEVICE)
                 labels = labels.to(Config.DEVICE)
@@ -515,22 +535,25 @@ def train_simple_model():
         scheduler.step()
 
         # Сохраняем историю
-        history['train_loss'].append(avg_train_loss)
-        history['train_acc'].append(train_accuracy)
-        history['val_loss'].append(avg_val_loss)
-        history['val_acc'].append(val_accuracy)
+        history["train_loss"].append(avg_train_loss)
+        history["train_acc"].append(train_accuracy)
+        history["val_loss"].append(avg_val_loss)
+        history["val_acc"].append(val_accuracy)
 
         # Сохраняем лучшую модель
         if val_accuracy > best_val_acc:
             best_val_acc = val_accuracy
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'val_acc': val_accuracy,
-                'train_acc': train_accuracy,
-                'class_names': Config.CLASS_NAMES
-            }, Config.MODEL_SAVE_PATH)
+            torch.save(
+                {
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "val_acc": val_accuracy,
+                    "train_acc": train_accuracy,
+                    "class_names": Config.CLASS_NAMES,
+                },
+                Config.MODEL_SAVE_PATH,
+            )
             print(f"💾 Сохранена лучшая модель! Точность: {val_accuracy:.4f}")
 
         # Выводим статистику
@@ -545,70 +568,83 @@ def train_simple_model():
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
     # График потерь
-    axes[0, 0].plot(history['train_loss'], label='Train', marker='o', linewidth=2)
-    axes[0, 0].plot(history['val_loss'], label='Val', marker='s', linewidth=2)
-    axes[0, 0].set_title('Loss History', fontsize=14, fontweight='bold')
-    axes[0, 0].set_xlabel('Epoch')
-    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].plot(history["train_loss"], label="Train", marker="o", linewidth=2)
+    axes[0, 0].plot(history["val_loss"], label="Val", marker="s", linewidth=2)
+    axes[0, 0].set_title("Loss History", fontsize=14, fontweight="bold")
+    axes[0, 0].set_xlabel("Epoch")
+    axes[0, 0].set_ylabel("Loss")
     axes[0, 0].legend()
     axes[0, 0].grid(True, alpha=0.3)
 
     # График точности
-    axes[0, 1].plot(history['train_acc'], label='Train', marker='o', linewidth=2)
-    axes[0, 1].plot(history['val_acc'], label='Val', marker='s', linewidth=2)
-    axes[0, 1].set_title('Accuracy History', fontsize=14, fontweight='bold')
-    axes[0, 1].set_xlabel('Epoch')
-    axes[0, 1].set_ylabel('Accuracy')
+    axes[0, 1].plot(history["train_acc"], label="Train", marker="o", linewidth=2)
+    axes[0, 1].plot(history["val_acc"], label="Val", marker="s", linewidth=2)
+    axes[0, 1].set_title("Accuracy History", fontsize=14, fontweight="bold")
+    axes[0, 1].set_xlabel("Epoch")
+    axes[0, 1].set_ylabel("Accuracy")
     axes[0, 1].legend()
     axes[0, 1].grid(True, alpha=0.3)
 
     # Confusion Matrix
     try:
         cm = confusion_matrix(all_labels, all_preds)
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                   xticklabels=Config.CLASS_NAMES,
-                   yticklabels=Config.CLASS_NAMES,
-                   ax=axes[1, 0])
-        axes[1, 0].set_title('Confusion Matrix', fontsize=14, fontweight='bold')
-        axes[1, 0].set_xlabel('Predicted')
-        axes[1, 0].set_ylabel('True')
-    except:
-        axes[1, 0].text(0.5, 0.5, 'Confusion Matrix\nне доступна',
-                       ha='center', va='center', fontsize=12)
-        axes[1, 0].set_title('Confusion Matrix', fontsize=14, fontweight='bold')
-        axes[1, 0].axis('off')
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=Config.CLASS_NAMES,
+            yticklabels=Config.CLASS_NAMES,
+            ax=axes[1, 0],
+        )
+        axes[1, 0].set_title("Confusion Matrix", fontsize=14, fontweight="bold")
+        axes[1, 0].set_xlabel("Predicted")
+        axes[1, 0].set_ylabel("True")
+    except Exception as e:
+        axes[1, 1].text(0.5, 0.5, f'Classification Report\nне доступен\n({str(e)})', ha='center', va='center', fontsize=12)
+        axes[1, 0].set_title("Confusion Matrix", fontsize=14, fontweight="bold")
+        axes[1, 0].axis("off")
 
     # Classification Report
     try:
-        report = classification_report(all_labels, all_preds,
-                                      target_names=Config.CLASS_NAMES)
-        axes[1, 1].text(0, 1, report, fontsize=10, fontfamily='monospace',
-                       verticalalignment='top', transform=axes[1, 1].transAxes)
-    except:
-        axes[1, 1].text(0.5, 0.5, 'Classification Report\nне доступен',
-                       ha='center', va='center', fontsize=12)
-
-    axes[1, 1].set_title('Classification Report', fontsize=14, fontweight='bold')
-    axes[1, 1].axis('off')
+        report = classification_report(
+            all_labels, all_preds, target_names=Config.CLASS_NAMES
+        )
+        axes[1, 1].text(
+            0,
+            1,
+            report,
+            fontsize=10,
+            fontfamily="monospace",
+            verticalalignment="top",
+            transform=axes[1, 1].transAxes,
+        )
+    except Exception as e:
+        axes[1, 1].text(0.5, 0.5, f'Classification Report\nне доступен\n({str(e)})', ha='center', va='center', fontsize=12)
+        axes[1, 1].set_title("Classification Report", fontsize=14, fontweight="bold")
+        axes[1, 1].axis("off")
 
     plt.tight_layout()
-    results_path = os.path.join(os.getcwd(), 'training_results.png')
-    plt.savefig(results_path, dpi=100, bbox_inches='tight')
+    results_path = os.path.join(os.getcwd(), "training_results.png")
+    plt.savefig(results_path, dpi=100, bbox_inches="tight")
     plt.show()
 
     # Выводим отчет по классификации
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📋 ОТЧЕТ ПО КЛАССИФИКАЦИИ")
-    print("="*60)
+    print("=" * 60)
     try:
-        print(classification_report(all_labels, all_preds,
-                                  target_names=Config.CLASS_NAMES))
-    except:
-        print("Отчет не доступен")
+        print(
+            classification_report(
+                all_labels, all_preds, target_names=Config.CLASS_NAMES
+            )
+        )
+    except Exception as e:
+        print(f"Отчет не доступен: {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🎉 ОБУЧЕНИЕ ЗАВЕРШЕНО!")
-    print("="*60)
+    print("=" * 60)
     print(f"🏆 Лучшая точность на валидации: {best_val_acc:.4f}")
     print(f"💾 Модель сохранена: {Config.MODEL_SAVE_PATH}")
     print("\n📋 Классы модели:")
@@ -616,6 +652,7 @@ def train_simple_model():
         print(f"  {i}: {cls}")
 
     return model, history
+
 
 # ================================================
 # ПРЕДСКАЗАНИЕ С ОБРАБОТКОЙ ПОВРЕЖДЕННЫХ ИЗОБРАЖЕНИЙ
@@ -628,8 +665,8 @@ def predict_single_image():
 
     print("\n📤 Введите путь к изображению для классификации...")
     image_path = input("Введите полный путь к изображению: ").strip()
-    image_path = image_path.replace('/', '\\')
-    
+    image_path = image_path.replace("/", "\\")
+
     if not os.path.exists(image_path):
         print(f"❌ Файл не найден: {image_path}")
         return
@@ -645,7 +682,7 @@ def predict_single_image():
     # Загружаем модель
     model = create_simple_model()
     checkpoint = torch.load(Config.MODEL_SAVE_PATH, map_location=Config.DEVICE)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     # Получаем трансформации
@@ -679,19 +716,19 @@ def predict_single_image():
         predicted_class = Config.CLASS_NAMES[predicted_idx]
 
         # Выводим результат
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎯 РЕЗУЛЬТАТ КЛАССИФИКАЦИИ")
-        print("="*60)
+        print("=" * 60)
         print(f"📋 Класс: {predicted_class}")
         print(f"📊 Уверенность: {confidence:.2%}")
-        print(f"\n📈 Распределение вероятностей:")
+        print("\n📈 Распределение вероятностей:")
         for i, cls in enumerate(Config.CLASS_NAMES):
             prob = probabilities[0][i].item()
             prob_percent = prob * 100
             # Создаем прогресс-бар
             bar_length = 20
             filled_length = int(bar_length * prob)
-            bar = '█' * filled_length + '░' * (bar_length - filled_length)
+            bar = "█" * filled_length + "░" * (bar_length - filled_length)
 
             # Подсвечиваем предсказанный класс
             if i == predicted_idx:
@@ -706,56 +743,78 @@ def predict_single_image():
         plt.subplot(1, 3, 1)
         plt.imshow(image)
         plt.title(f"Входное изображение\n{os.path.basename(image_path)}", fontsize=12)
-        plt.axis('off')
+        plt.axis("off")
 
         # График вероятностей
         plt.subplot(1, 3, 2)
-        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
+        colors = ["#FF6B6B", "#4ECDC4", "#45B7D1"]
         probs = probabilities[0].cpu().numpy()
 
-        bars = plt.bar(Config.CLASS_NAMES, probs, color=colors, alpha=0.7, edgecolor='black', linewidth=2)
+        bars = plt.bar(
+            Config.CLASS_NAMES,
+            probs,
+            color=colors,
+            alpha=0.7,
+            edgecolor="black",
+            linewidth=2,
+        )
         bars[predicted_idx].set_alpha(1.0)
         bars[predicted_idx].set_linewidth(3)
-        bars[predicted_idx].set_edgecolor('red')
+        bars[predicted_idx].set_edgecolor("red")
 
-        plt.title(f"Предсказание: {predicted_class}\nУверенность: {confidence:.2%}",
-                 fontsize=14, fontweight='bold')
+        plt.title(
+            f"Предсказание: {predicted_class}\nУверенность: {confidence:.2%}",
+            fontsize=14,
+            fontweight="bold",
+        )
         plt.ylim([0, 1.1])
-        plt.ylabel('Вероятность', fontsize=12)
-        plt.grid(True, alpha=0.3, axis='y')
+        plt.ylabel("Вероятность", fontsize=12)
+        plt.grid(True, alpha=0.3, axis="y")
 
         # Добавляем значения на столбцы
         for i, (bar, prob) in enumerate(zip(bars, probs)):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.02,
-                    f'{prob:.2%}', ha='center', va='bottom', fontsize=11,
-                    fontweight='bold' if i == predicted_idx else 'normal',
-                    color='red' if i == predicted_idx else 'black')
+            plt.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.02,
+                f"{prob:.2%}",
+                ha="center",
+                va="bottom",
+                fontsize=11,
+                fontweight="bold" if i == predicted_idx else "normal",
+                color="red" if i == predicted_idx else "black",
+            )
 
         # Тепловая карта вероятностей
         plt.subplot(1, 3, 3)
         prob_matrix = probabilities.cpu().numpy().reshape(-1, 1)
-        plt.imshow(prob_matrix, cmap='RdYlGn', aspect='auto', vmin=0, vmax=1)
-        plt.colorbar(label='Вероятность')
+        plt.imshow(prob_matrix, cmap="RdYlGn", aspect="auto", vmin=0, vmax=1)
+        plt.colorbar(label="Вероятность")
         plt.yticks(range(len(Config.CLASS_NAMES)), Config.CLASS_NAMES)
         plt.xticks([])
-        plt.title('Тепловая карта вероятностей', fontsize=14, fontweight='bold')
+        plt.title("Тепловая карта вероятностей", fontsize=14, fontweight="bold")
 
         # Добавляем значения в ячейки
         for i, prob in enumerate(prob_matrix):
-            plt.text(0, i, f'{prob[0]:.3f}', ha='center', va='center',
-                    color='white' if prob[0] > 0.5 else 'black',
-                    fontweight='bold' if i == predicted_idx else 'normal')
+            plt.text(
+                0,
+                i,
+                f"{prob[0]:.3f}",
+                ha="center",
+                va="center",
+                color="white" if prob[0] > 0.5 else "black",
+                fontweight="bold" if i == predicted_idx else "normal",
+            )
 
         plt.tight_layout()
         plt.show()
 
         # Дополнительная информация
         print("\n📝 ИНТЕРПРЕТАЦИЯ РЕЗУЛЬТАТА:")
-        if predicted_class == 'pered':
+        if predicted_class == "pered":
             print("  🚂 Передняя часть вагона обнаружена")
-        elif predicted_class == 'zad':
+        elif predicted_class == "zad":
             print("  🚂 Задняя часть вагона обнаружена")
-        elif predicted_class == 'none':
+        elif predicted_class == "none":
             print("  ⭕ Вагон не обнаружен")
 
         if confidence > 0.9:
@@ -775,8 +834,10 @@ def predict_single_image():
         print("  3. Проверьте формат файла (должен быть JPG, PNG)")
 
         import traceback
+
         traceback.print_exc()
         return None
+
 
 # ================================================
 # ПАКЕТНОЕ ТЕСТИРОВАНИЕ
@@ -789,17 +850,18 @@ def batch_test_images():
 
     print("\n📤 Введите путь к папке с изображениями для тестирования...")
     folder_path = input("Введите полный путь к папке: ").strip()
-    folder_path = folder_path.replace('/', '\\')
-    
+    folder_path = folder_path.replace("/", "\\")
+
     if not os.path.exists(folder_path):
         print(f"❌ Папка не найдена: {folder_path}")
         return
 
     # Получаем список изображений
-    image_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff')
-    image_files = [f for f in os.listdir(folder_path) 
-                   if f.lower().endswith(image_extensions)]
-    
+    image_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".tiff")
+    image_files = [
+        f for f in os.listdir(folder_path) if f.lower().endswith(image_extensions)
+    ]
+
     if not image_files:
         print(f"❌ В папке нет изображений: {folder_path}")
         return
@@ -809,7 +871,7 @@ def batch_test_images():
     # Загружаем модель
     model = create_simple_model()
     checkpoint = torch.load(Config.MODEL_SAVE_PATH, map_location=Config.DEVICE)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     # Получаем трансформации
@@ -849,9 +911,9 @@ def batch_test_images():
             results.append((image_name, "ERROR", 0.0))
 
     # Выводим сводку
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📊 СВОДКА ПО ТЕСТИРОВАНИЮ")
-    print("="*60)
+    print("=" * 60)
 
     if not results:
         print("❌ Нет результатов")
@@ -870,7 +932,9 @@ def batch_test_images():
             print(f"  ❌ Ошибки: {len(confidences)} изображений")
         else:
             avg_conf = np.mean(confidences) if confidences else 0
-            print(f"  {cls}: {len(confidences)} изображений, средняя уверенность: {avg_conf:.2%}")
+            print(
+                f"  {cls}: {len(confidences)} изображений, средняя уверенность: {avg_conf:.2%}"
+            )
 
     # Подробные результаты
     print("\n📋 Подробные результаты:")
@@ -882,21 +946,24 @@ def batch_test_images():
 
     return results
 
+
 # ================================================
 # ГЛАВНОЕ МЕНЮ
 # ================================================
 def main_menu():
     """Главное меню"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚂 КЛАССИФИКАТОР ВАГОНОВ")
-    print("="*60)
+    print("=" * 60)
     print(f"📱 Устройство: {Config.DEVICE}")
-    if Config.DEVICE.type == 'cuda':
+    if Config.DEVICE.type == "cuda":
         print(f"🎮 GPU: {torch.cuda.get_device_name(0)}")
-        print(f"💾 Память: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+        print(
+            f"💾 Память: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
+        )
 
     while True:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ГЛАВНОЕ МЕНЮ:")
         print("1. 📊 Подготовить данные")
         print("2. 🏋️‍♂️ Обучить модель")
@@ -905,15 +972,15 @@ def main_menu():
         print("5. 📈 Показать графики")
         print("6. 🧹 Очистить кэш")
         print("0. ❌ Выход")
-        print("="*60)
+        print("=" * 60)
 
         choice = input("\nВыберите действие (0-6): ").strip()
 
-        if choice == '1':
+        if choice == "1":
             # Подготовка данных
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("ПОДГОТОВКА ДАННЫХ")
-            print("="*60)
+            print("=" * 60)
 
             success = prepare_data_simple()
             if success:
@@ -921,7 +988,7 @@ def main_menu():
             else:
                 print("\n❌ Ошибка при подготовке данных")
 
-        elif choice == '2':
+        elif choice == "2":
             # Обучение модели
             if not os.path.exists(Config.DATA_DIR):
                 print("\n❌ Данные не подготовлены! Сначала выполните шаг 1.")
@@ -934,9 +1001,10 @@ def main_menu():
             except Exception as e:
                 print(f"\n❌ Ошибка при обучении: {e}")
                 import traceback
+
                 traceback.print_exc()
 
-        elif choice == '3':
+        elif choice == "3":
             # Тестирование одного изображения
             if not os.path.exists(Config.MODEL_SAVE_PATH):
                 print("\n❌ Модель не обучена! Сначала выполните шаг 2.")
@@ -949,7 +1017,7 @@ def main_menu():
             except Exception as e:
                 print(f"\n❌ Ошибка при предсказании: {e}")
 
-        elif choice == '4':
+        elif choice == "4":
             # Пакетное тестирование
             if not os.path.exists(Config.MODEL_SAVE_PATH):
                 print("\n❌ Модель не обучена! Сначала выполните шаг 2.")
@@ -962,23 +1030,23 @@ def main_menu():
             except Exception as e:
                 print(f"\n❌ Ошибка при пакетном тестировании: {e}")
 
-        elif choice == '5':
+        elif choice == "5":
             # Показать графики
-            results_path = os.path.join(os.getcwd(), 'training_results.png')
+            results_path = os.path.join(os.getcwd(), "training_results.png")
             if os.path.exists(results_path):
                 print("\n📊 Графики обучения:")
                 try:
                     img = plt.imread(results_path)
                     plt.figure(figsize=(12, 8))
                     plt.imshow(img)
-                    plt.axis('off')
+                    plt.axis("off")
                     plt.show()
                 except Exception as e:
                     print(f"❌ Ошибка при загрузке графиков: {e}")
             else:
                 print("\n❌ Графики не найдены. Сначала обучите модель.")
 
-        elif choice == '6':
+        elif choice == "6":
             # Очистка кэша
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -986,7 +1054,7 @@ def main_menu():
             else:
                 print("⚠ GPU не доступна")
 
-        elif choice == '0':
+        elif choice == "0":
             print("\n👋 До свидания!")
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -994,6 +1062,7 @@ def main_menu():
 
         else:
             print("\n❌ Неверный выбор. Пожалуйста, выберите от 0 до 6.")
+
 
 # ================================================
 # ЗАПУСК
@@ -1005,6 +1074,6 @@ if __name__ == "__main__":
     print("Установите библиотеки из файла requirements.txt:")
     print("pip install -r requirements.txt")
     print("=" * 60)
-    
+
     # Запускаем меню
     main_menu()

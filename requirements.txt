@@ -10,8 +10,8 @@ tqdm
 Pillow
 pandas
 patool
-unrar
-winrar
+# unrar
+# winrar
 fastapi
 uvicorn[standard]
 python-multipart

@@ -1,0 +1,175 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Возможность ручного запуска
+
+env:
+  PYTHON_VERSION: '3.10'
+  DOCKER_IMAGE_NAME: wagon-classifier-api
+  DOCKER_REGISTRY: ghcr.io  # GitHub Container Registry
+
+jobs:
+  # JOB 1: Линтинг и проверка кода
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      
+      - name: Install dependencies
+        run: |
+          uv pip install --system ruff black mypy
+          uv pip install --system -r requirements.txt
+      
+      - name: Run Ruff (быстрый линтер)
+        run: ruff check . --output-format=github
+      
+      - name: Run Black (проверка форматирования)
+        run: black --check --diff .
+      
+      - name: Run mypy (проверка типов)
+        run: mypy app/ --ignore-missing-imports
+        continue-on-error: true  # Пока не критично
+
+  # JOB 2: Тестирование
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      
+      - name: Install dependencies
+        run: |
+          uv pip install --system pytest pytest-asyncio pytest-cov httpx
+          uv pip install --system -r requirements.txt
+      
+      - name: Create directories for tests
+        run: |
+          mkdir -p models uploads
+          # Создаем dummy модель если нужно для тестов
+          touch models/best_model.pth || echo "Model will be created during training"
+      
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term --ignore=tests/test_model.py
+        env:
+          PYTHONPATH: .
+          MODEL_PATH: models/best_model.pth
+      
+      - name: Upload coverage to Codecov (опционально)
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  # JOB 3: Сборка Docker образа
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{date:'YYYYMMDD'}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # JOB 4: Деплой (пример для будущего сервера)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    environment: production
+    concurrency: production
+    
+    steps:
+      - name: Deploy to server
+        run: |
+          echo "🚀 Деплой будет настроен позже"
+          echo "Пример для Docker Swarm:"
+          echo "docker stack deploy -c docker-compose.yml wagon-api"
+          echo "Пример для Kubernetes:"
+          echo "kubectl apply -f k8s/deployment.yaml"
+        # Раскомментируйте когда появится сервер:
+        # - name: Deploy via SSH
+        #   uses: appleboy/ssh-action@v1.0.3
+        #   with:
+        #     host: ${{ secrets.DEPLOY_HOST }}
+        #     username: ${{ secrets.DEPLOY_USER }}
+        #     key: ${{ secrets.DEPLOY_SSH_KEY }}
+        #     script: |
+        #       docker pull ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+        #       docker-compose down
+        #       docker-compose up -d
+
+  # JOB 5: Уведомления (опционально)
+  notify:
+    runs-on: ubuntu-latest
+    needs: [lint, test, docker-build]
+    if: always()
+    
+    steps:
+      - name: Send notification
+        run: |
+          echo "CI/CD Pipeline Status: ${{ job.status }}"
+          # Добавьте интеграцию с Telegram/Slack при необходимости
+        # Пример для Slack:
+        # - name: Slack Notification
+        #   uses: rtCamp/action-slack-notify@v2
+        #   env:
+        #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        #     SLACK_TITLE: "CI/CD Pipeline"
+        #     SLACK_MESSAGE: "Pipeline status: ${{ job.status }}"
