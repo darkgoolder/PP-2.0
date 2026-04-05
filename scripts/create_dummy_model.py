@@ -54,7 +54,7 @@ def create_dummy_model():
     # Проверяем что файл создан корректно
     if os.path.exists("models/best_model.pth"):
         file_size = os.path.getsize("models/best_model.pth")
-        print(f"✅ Dummy model created at models/best_model.pth")
+        print("✅ Dummy model created at models/best_model.pth")
         print(f"📦 Model file size: {file_size} bytes")
 
         # Проверяем, что модель можно загрузить
