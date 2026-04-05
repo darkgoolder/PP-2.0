@@ -2,23 +2,21 @@
 Pydantic схемы для валидации данных API
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Optional, List, Any
 from datetime import datetime
 
 
 class PredictionResponse(BaseModel):
     """Ответ API с предсказанием"""
-
-    status: str = Field(..., example="success")
-    data: Dict[str, Any] = Field(..., description="Результат классификации")
-    request_id: Optional[str] = Field(
-        None, description="Уникальный идентификатор запроса"
-    )
+    
+    status: str = Field(default=..., description="Статус ответа")
+    data: Dict[str, Any] = Field(default=..., description="Результат классификации")
+    request_id: Optional[str] = Field(default=None, description="Уникальный идентификатор запроса")
     timestamp: datetime = Field(default_factory=datetime.now)
-
-    class Config:
-        json_schema_extra = {
+    
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "success",
                 "data": {
@@ -31,17 +29,18 @@ class PredictionResponse(BaseModel):
                 "timestamp": "2024-01-15T10:30:00",
             }
         }
+    )
 
 
 class ErrorResponse(BaseModel):
     """Ответ при ошибке"""
-
-    status: str = Field(..., example="error")
-    error: Dict[str, Any] = Field(..., description="Детали ошибки")
+    
+    status: str = Field(default=..., description="Статус ответа")
+    error: Dict[str, Any] = Field(default=..., description="Детали ошибки")
     timestamp: datetime = Field(default_factory=datetime.now)
-
-    class Config:
-        json_schema_extra = {
+    
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "error",
                 "error": {
@@ -52,18 +51,19 @@ class ErrorResponse(BaseModel):
                 "timestamp": "2024-01-15T10:30:00",
             }
         }
+    )
 
 
 class HealthResponse(BaseModel):
     """Проверка здоровья сервиса"""
-
-    status: str = Field(..., description="Статус сервиса", example="healthy")
-    model_loaded: bool = Field(..., description="Загружена ли модель", example=True)
-    device: str = Field(..., description="Устройство выполнения", example="cuda")
-    version: str = Field(..., description="Версия API", example="2.0.0")
-
-    class Config:
-        json_schema_extra = {
+    
+    status: str = Field(default=..., description="Статус сервиса")
+    model_loaded: bool = Field(default=..., description="Загружена ли модель")
+    device: str = Field(default=..., description="Устройство выполнения")
+    version: str = Field(default=..., description="Версия API")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "healthy",
                 "model_loaded": True,
@@ -71,20 +71,19 @@ class HealthResponse(BaseModel):
                 "version": "2.0.0",
             }
         }
+    )
 
 
 class BatchPredictionResponse(BaseModel):
     """Ответ для пакетной классификации"""
-
-    status: str = Field(..., example="success")
-    results: List[Dict[str, Any]] = Field(
-        ..., description="Результаты для каждого файла"
-    )
-    total: int = Field(..., description="Всего файлов")
-    successful: int = Field(..., description="Успешно обработано")
-
-    class Config:
-        json_schema_extra = {
+    
+    status: str = Field(default=..., description="Статус ответа")
+    results: List[Dict[str, Any]] = Field(default=..., description="Результаты для каждого файла")
+    total: int = Field(default=..., description="Всего файлов")
+    successful: int = Field(default=..., description="Успешно обработано")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "success",
                 "results": [
@@ -103,3 +102,4 @@ class BatchPredictionResponse(BaseModel):
                 "successful": 1,
             }
         }
+    )

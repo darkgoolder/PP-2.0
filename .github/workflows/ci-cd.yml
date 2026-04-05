@@ -40,7 +40,7 @@ jobs:
         run: black --check --diff --target-version py39 .
       
       - name: Run mypy (проверка типов)
-        run: mypy app/ --ignore-missing-imports
+        run: mypy -p app --ignore-missing-imports
         continue-on-error: true
 
   # JOB 2: Тестирование

@@ -22,7 +22,7 @@ class WagonClassifier:
     Загружает обученную модель и выполняет инференс
     """
 
-    def __init__(self, model_path: str, class_names: List[str], device: str = None):
+    def __init__(self, model_path: str, class_names: List[str], device: Optional[str] = None):
         """
         Инициализация классификатора
 
@@ -154,7 +154,7 @@ class WagonClassifier:
                 # Получаем предсказание
                 predicted_idx = torch.argmax(probabilities, dim=1).item()
                 confidence = probabilities[0][predicted_idx].item()
-                predicted_class = self.class_names[predicted_idx]
+                predicted_class = self.class_names[int(predicted_idx)]
 
                 # Все вероятности
                 all_probs = {
@@ -226,7 +226,8 @@ def get_classifier() -> WagonClassifier:
         from app.config import settings
 
         _classifier_instance = WagonClassifier(
-            model_path=settings.MODEL_PATH, class_names=settings.CLASS_NAMES
+            model_path=str(settings.MODEL_PATH),  # str() преобразует Path в строку
+            class_names=settings.CLASS_NAMES
         )
 
     return _classifier_instance
