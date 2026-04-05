@@ -29,7 +29,7 @@ def validate_image_file(file: UploadFile, settings) -> bool:
         HTTPException при ошибках валидации
     """
     # Проверяем расширение
-    ext = os.path.splitext(file.filename)[1].lower()
+    ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
