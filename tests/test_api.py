@@ -7,7 +7,6 @@ from pathlib import Path
 import sys
 from PIL import Image
 import io
-import tempfile
 
 # Добавляем корневую папку в путь
 sys.path.append(str(Path(__file__).parent.parent))
