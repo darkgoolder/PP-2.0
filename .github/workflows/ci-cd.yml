@@ -71,28 +71,23 @@ jobs:
       - name: Create directories for tests
         run: |
           mkdir -p models uploads
-      
-      - name: Create dummy model for tests
+
+      - name: Install system dependencies for model creation
         run: |
-          python -c "
-          import torch
-          import torch.nn as nn
-          model = nn.Sequential(
-              nn.Linear(3*224*224, 128),
-              nn.ReLU(),
-              nn.Linear(128, 3)
-          )
-          checkpoint = {
-              'model_state_dict': model.state_dict(),
-              'class_names': ['pered', 'zad', 'none']
-          }
-          torch.save(checkpoint, 'models/best_model.pth')
-          print('✅ Dummy model created')
-          "
-      
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+      - name: Create dummy model for tests
+        run: python scripts/create_dummy_model.py
+
+      - name: Verify model file
+        run: |
+          ls -la models/
+          python -c "import torch; ckpt = torch.load('models/best_model.pth', map_location='cpu'); print('Keys:', ckpt.keys()); print('Model valid')"
+
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term --ignore=tests/test_model.py
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
         env:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth

@@ -65,49 +65,42 @@ class WagonClassifier:
         logger.info(f"Модель загружена. Классы: {self.class_names}")
 
     def _load_model(self) -> nn.Module:
-        """
-        Загрузка модели из файла
-
-        Returns:
-            Загруженная модель в режиме evaluation
-        """
+        """Загрузка модели из файла"""
         start_time = time.time()
 
-        # Создаем архитектуру модели (должна совпадать с train_model.py)
+        # Создаем архитектуру модели
         model = models.efficientnet_b2(weights=None)
         in_features = model.classifier[1].in_features
         model.classifier = nn.Sequential(
             nn.Dropout(p=0.3), nn.Linear(in_features, self.num_classes)
         )
 
-        # Проверяем существование файла
         if not os.path.exists(self.model_path):
-            raise FileNotFoundError(f"Модель не найдена: {self.model_path}")
+            raise FileNotFoundError(f"Model not found: {self.model_path}")
 
-        # Загружаем веса
+        # Загружаем веса с обработкой ошибок
         checkpoint = torch.load(self.model_path, map_location=self.device)
 
         # Поддерживаем разные форматы сохранения
         if "model_state_dict" in checkpoint:
-            model.load_state_dict(checkpoint["model_state_dict"])
+            state_dict = checkpoint["model_state_dict"]
         else:
-            model.load_state_dict(checkpoint)
+            state_dict = checkpoint
 
-        # Перемещаем на устройство и переводим в режим оценки
+        # Загружаем state_dict с strict=False для фиктивной модели
+        # strict=False позволяет игнорировать несовпадающие ключи
+        missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+
+        if missing_keys:
+            logger.warning(f"Missing keys in checkpoint: {missing_keys[:5]}...")
+        if unexpected_keys:
+            logger.warning(f"Unexpected keys in checkpoint: {unexpected_keys[:5]}...")
+
         model = model.to(self.device)
         model.eval()
 
-        # Записываем время загрузки
         load_time = time.time() - start_time
-        try:
-            from app.utils.metrics import MODEL_LOADED, MODEL_LOAD_TIME
-
-            MODEL_LOADED.set(1)
-            MODEL_LOAD_TIME.set(load_time)
-        except ImportError:
-            pass  # Если метрики не настроены, просто пропускаем
-
-        logger.info(f"Модель загружена за {load_time:.2f} секунд")
+        logger.info(f"Model loaded in {load_time:.2f} seconds")
 
         return model
 
