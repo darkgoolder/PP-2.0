@@ -601,7 +601,14 @@ def train_simple_model():
         axes[1, 0].set_xlabel("Predicted")
         axes[1, 0].set_ylabel("True")
     except Exception as e:
-        axes[1, 1].text(0.5, 0.5, f'Classification Report\nне доступен\n({str(e)})', ha='center', va='center', fontsize=12)
+        axes[1, 1].text(
+            0.5,
+            0.5,
+            f"Classification Report\nне доступен\n({str(e)})",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
         axes[1, 0].set_title("Confusion Matrix", fontsize=14, fontweight="bold")
         axes[1, 0].axis("off")
 
@@ -620,7 +627,14 @@ def train_simple_model():
             transform=axes[1, 1].transAxes,
         )
     except Exception as e:
-        axes[1, 1].text(0.5, 0.5, f'Classification Report\nне доступен\n({str(e)})', ha='center', va='center', fontsize=12)
+        axes[1, 1].text(
+            0.5,
+            0.5,
+            f"Classification Report\nне доступен\n({str(e)})",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
         axes[1, 1].set_title("Classification Report", fontsize=14, fontweight="bold")
         axes[1, 1].axis("off")
 

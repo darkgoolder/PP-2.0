@@ -13,7 +13,7 @@ env:
   DOCKER_REGISTRY: ghcr.io  # GitHub Container Registry
 
 jobs:
-    # JOB 1: Линтинг и проверка кода
+      # JOB 1: Линтинг и проверка кода
   lint:
     runs-on: ubuntu-latest
     steps:

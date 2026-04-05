@@ -99,11 +99,12 @@ class WagonClassifier:
         load_time = time.time() - start_time
         try:
             from app.utils.metrics import MODEL_LOADED, MODEL_LOAD_TIME
+
             MODEL_LOADED.set(1)
             MODEL_LOAD_TIME.set(load_time)
         except ImportError:
             pass  # Если метрики не настроены, просто пропускаем
-        
+
         logger.info(f"Модель загружена за {load_time:.2f} секунд")
 
         return model
@@ -225,8 +226,7 @@ def get_classifier() -> WagonClassifier:
         from app.config import settings
 
         _classifier_instance = WagonClassifier(
-            model_path=settings.MODEL_PATH, 
-            class_names=settings.CLASS_NAMES
+            model_path=settings.MODEL_PATH, class_names=settings.CLASS_NAMES
         )
 
     return _classifier_instance
