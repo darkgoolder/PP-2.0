@@ -68,7 +68,7 @@ class HealthResponse(BaseModel):
                 "status": "healthy",
                 "model_loaded": True,
                 "device": "cuda",
-                "version": "2.0.0"
+                "version": "2.0.0",
             }
         }
 
@@ -77,10 +77,12 @@ class BatchPredictionResponse(BaseModel):
     """Ответ для пакетной классификации"""
 
     status: str = Field(..., example="success")
-    results: List[Dict[str, Any]] = Field(..., description="Результаты для каждого файла")
+    results: List[Dict[str, Any]] = Field(
+        ..., description="Результаты для каждого файла"
+    )
     total: int = Field(..., description="Всего файлов")
     successful: int = Field(..., description="Успешно обработано")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -93,11 +95,11 @@ class BatchPredictionResponse(BaseModel):
                             "class": "pered",
                             "class_name": "передняя часть вагона",
                             "confidence": 0.95,
-                            "probabilities": {"pered": 0.95, "zad": 0.03, "none": 0.02}
-                        }
+                            "probabilities": {"pered": 0.95, "zad": 0.03, "none": 0.02},
+                        },
                     }
                 ],
                 "total": 1,
-                "successful": 1
+                "successful": 1,
             }
         }

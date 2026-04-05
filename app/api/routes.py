@@ -81,34 +81,34 @@ async def predict_image(file: UploadFile = File(..., description="Изображ
 
         # Получаем модель и делаем предсказание
         classifier = get_classifier()
-        
+
         # Проверяем, что метод predict возвращает кортеж из 3 элементов
         result = classifier.predict(image)
-        
+
         # Обрабатываем разные форматы возврата
         if isinstance(result, tuple) and len(result) == 3:
             predicted_class, confidence, probabilities = result
         elif isinstance(result, dict):
-            predicted_class = result.get('class')
-            confidence = result.get('confidence')
-            probabilities = result.get('probabilities')
+            predicted_class = result.get("class")
+            confidence = result.get("confidence")
+            probabilities = result.get("probabilities")
         else:
             raise ValueError("Unexpected predict return format")
 
         # Формируем ответ
         response_data = {
             "class": predicted_class,
-            "class_name": classifier.class_names_ru.get(
-                predicted_class, predicted_class
-            ) if hasattr(classifier, 'class_names_ru') else predicted_class,
+            "class_name": (
+                classifier.class_names_ru.get(predicted_class, predicted_class)
+                if hasattr(classifier, "class_names_ru")
+                else predicted_class
+            ),
             "confidence": confidence,
             "probabilities": probabilities,
         }
 
         return PredictionResponse(
-            status="success", 
-            data=response_data, 
-            request_id=str(uuid.uuid4())
+            status="success", data=response_data, request_id=str(uuid.uuid4())
         )
 
     except HTTPException:
@@ -117,20 +117,24 @@ async def predict_image(file: UploadFile = File(..., description="Изображ
         logger.error(f"Модель не найдена: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "MODEL_NOT_FOUND", "message": "Модель не загружена. Сначала обучите модель."}
+            detail={
+                "code": "MODEL_NOT_FOUND",
+                "message": "Модель не загружена. Сначала обучите модель.",
+            },
         )
     except Exception as e:
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "INTERNAL_ERROR", "message": f"Внутренняя ошибка сервера: {str(e)}"},
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": f"Внутренняя ошибка сервера: {str(e)}",
+            },
         )
 
 
 @router.post(
-    "/predict-batch", 
-    tags=["Prediction"], 
-    summary="Пакетная классификация изображений"
+    "/predict-batch", tags=["Prediction"], summary="Пакетная классификация изображений"
 )
 async def predict_batch(
     files: List[UploadFile] = File(..., description="Список изображений")
@@ -153,13 +157,13 @@ async def predict_batch(
 
                 # Предсказание
                 result = classifier.predict(image)
-                
+
                 if isinstance(result, tuple) and len(result) == 3:
                     predicted_class, confidence, probabilities = result
                 elif isinstance(result, dict):
-                    predicted_class = result.get('class')
-                    confidence = result.get('confidence')
-                    probabilities = result.get('probabilities')
+                    predicted_class = result.get("class")
+                    confidence = result.get("confidence")
+                    probabilities = result.get("probabilities")
                 else:
                     raise ValueError("Unexpected predict return format")
 
@@ -169,9 +173,13 @@ async def predict_batch(
                         "success": True,
                         "result": {
                             "class": predicted_class,
-                            "class_name": classifier.class_names_ru.get(
-                                predicted_class, predicted_class
-                            ) if hasattr(classifier, 'class_names_ru') else predicted_class,
+                            "class_name": (
+                                classifier.class_names_ru.get(
+                                    predicted_class, predicted_class
+                                )
+                                if hasattr(classifier, "class_names_ru")
+                                else predicted_class
+                            ),
                             "confidence": confidence,
                             "probabilities": probabilities,
                         },
@@ -184,7 +192,7 @@ async def predict_batch(
                     error_message = error_detail.get("message", str(e.detail))
                 else:
                     error_message = str(e.detail)
-                    
+
                 results.append(
                     {
                         "filename": file.filename,
@@ -211,5 +219,8 @@ async def predict_batch(
         logger.error(f"Ошибка пакетной обработки: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "BATCH_ERROR", "message": f"Ошибка пакетной обработки: {str(e)}"},
+            detail={
+                "code": "BATCH_ERROR",
+                "message": f"Ошибка пакетной обработки: {str(e)}",
+            },
         )
