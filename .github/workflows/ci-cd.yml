@@ -72,23 +72,22 @@ jobs:
         run: |
           mkdir -p models uploads
       
-      - name: Create dummy model for tests  # ДОБАВИТЬ ЭТОТ ШАГ
+      - name: Create dummy model for tests
         run: |
           python -c "
-            import torch
-            import torch.nn as nn
-            # Создаем простую модель для тестов
-            model = nn.Sequential(
-                nn.Linear(3*224*224, 128),
-                nn.ReLU(),
-                nn.Linear(128, 3)
-            )
-            checkpoint = {
-                'model_state_dict': model.state_dict(),
-                'class_names': ['pered', 'zad', 'none']
-            }
-            torch.save(checkpoint, 'models/best_model.pth')
-            print('✅ Dummy model created')
+          import torch
+          import torch.nn as nn
+          model = nn.Sequential(
+              nn.Linear(3*224*224, 128),
+              nn.ReLU(),
+              nn.Linear(128, 3)
+          )
+          checkpoint = {
+              'model_state_dict': model.state_dict(),
+              'class_names': ['pered', 'zad', 'none']
+          }
+          torch.save(checkpoint, 'models/best_model.pth')
+          print('✅ Dummy model created')
           "
       
       - name: Run tests with coverage
