@@ -29,11 +29,12 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Копируем код приложения
 COPY app/ ./app/
-COPY models/ ./models/
-COPY uploads/ ./uploads/
 
 # Копируем статические файлы
 COPY app/static/ ./app/static/
+
+# Создаем директории для моделей и загрузок (если их нет)
+RUN mkdir -p models uploads
 
 # Переменные окружения
 ENV PYTHONPATH=/app
@@ -44,7 +45,7 @@ EXPOSE 8000
 
 # Здоровье проверка
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
 # Запуск приложения
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
