@@ -1,5 +1,5 @@
 # Многостадийная сборка для оптимизации
-FROM python:3.9-slim as builder  # ← ИЗМЕНЕНО: 3.10 → 3.9
+FROM python:3.9-slim AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,7 +19,7 @@ COPY pyproject.toml uv.lock requirements.txt ./
 RUN uv pip install --system --no-cache -r requirements.txt
 
 # Финальный образ
-FROM python:3.9-slim  # ← ИЗМЕНЕНО: 3.10 → 3.9
+FROM python:3.9-slim
 
 WORKDIR /app
 
