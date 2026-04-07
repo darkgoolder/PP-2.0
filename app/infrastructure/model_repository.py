@@ -225,4 +225,4 @@ def get_classifier() -> WagonClassifier:
             class_names=settings.CLASS_NAMES,
         )
 
-    return _classifier_instance
+    return _classifier_instance 
