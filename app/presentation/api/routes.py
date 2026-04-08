@@ -8,14 +8,10 @@ from typing import List
 from fastapi import APIRouter, File, UploadFile, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from app.models.schemas import (
-    PredictionResponse,
-    ErrorResponse,
-    HealthResponse,
-)
-from app.models.wagon_model import get_classifier
+from app.presentation.schemas import PredictionResponse, ErrorResponse, HealthResponse
+from app.infrastructure.model_repository import get_classifier
+from app.infrastructure.utils.image_utils import validate_image_file, process_image
 from app.config import settings
-from app.utils.image_utils import validate_image_file, process_image
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -12,7 +12,7 @@ import logging
 import os
 from pathlib import Path
 
-from app.api.routes import router
+from app.presentation.api.routes import router
 from app.config import settings
 from app.utils.logger import setup_logging
 
