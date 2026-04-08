@@ -2,7 +2,7 @@
 Основной файл приложения FastAPI
 """
 
-from app.utils.metrics import MetricsMiddleware, get_metrics
+from app.infrastructure.metrics import MetricsMiddleware, get_metrics
 from app.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +14,7 @@ from pathlib import Path
 
 from app.presentation.api.routes import router
 from app.config import settings
-from app.utils.logger import setup_logging
+from app.infrastructure.logger import setup_logging 
 
 # Настройка логирования
 setup_logging(settings.LOG_LEVEL)

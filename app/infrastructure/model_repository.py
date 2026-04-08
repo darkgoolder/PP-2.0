@@ -3,7 +3,7 @@
 Загружает обученную модель и выполняет предсказания
 """
 
-from app.utils.metrics import record_prediction_metrics
+from app.infrastructure.metrics import record_prediction_metrics
 import torch
 import torch.nn as nn
 from torchvision import models, transforms

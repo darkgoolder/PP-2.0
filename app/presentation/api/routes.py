@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.presentation.schemas import PredictionResponse, ErrorResponse, HealthResponse
 from app.infrastructure.model_repository import get_classifier
-from app.infrastructure.utils.image_utils import validate_image_file, process_image
+from app.infrastructure.image_processor import process_image, validate_image_file
 from app.config import settings
 
 logger = logging.getLogger(__name__)

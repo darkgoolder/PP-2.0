@@ -3,7 +3,7 @@
 """
 
 from fastapi import HTTPException, status
-from app.models.wagon_model import get_classifier
+from app.infrastructure.model_repository import get_classifier
 
 
 async def verify_model_loaded():
