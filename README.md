@@ -174,12 +174,6 @@ uvicorn app.main:app --reload
 •	ReDoc: http://127.0.0.1:8000/redoc
   
 Использование API
-
-Endpoint
-
-text
-
-POST /classify
   
 Входные параметры:
   
@@ -218,7 +212,6 @@ json
   
 Запуск обучения:
 ```
-python
 python train.py
 ```
   
@@ -232,7 +225,7 @@ IMAGE_SIZE	224	Размер входного изображения
 DEVICE	cuda/cpu	Устройство для обучения
 ```
   
-Мониторинг обучения
+# Мониторинг обучения
   
 В процессе обучения сохраняются:
   
@@ -287,25 +280,25 @@ Type checking
 ```
 uv run mypy app
 ```
-Производительность модели
+# Производительность модели:
   
-Метрика	Значение
-  
-Модель	EfficientNet-B2
+Метрика	 |  Значение
+|---------|----------|
+Модель	| EfficientNet-B2
 
-Параметры	9.1M
+Параметры |	9.1M
 
-Размер модели	~35 MB
+Размер модели |	~35 MB
 
-Время инференса (CPU)	45-60 ms
+Время инференса (CPU) |	45-60 ms
 
-Время инференса (GPU)	8-12 ms
+Время инференса (GPU) |	8-12 ms
 
-Точность на валидации	92-95%
+Точность на валидации |	92-95%
 
-Размер входного изображения	224x224
+Размер входного изображения |	224x224
 
-Результаты обучения (пример)
+Результаты обучения | (пример ниже)
     
 ```
 Classification Report:
@@ -319,13 +312,16 @@ Classification Report:
 weighted avg       0.94      0.94      0.94       450
 ```
   
-Docker
+# Docker
   
-# Сборка образа
+Сборка образа
 ```bash```
   
 Стандартная сборка
-```docker build -t fb-classifier```
+```
+bash
+docker build -t fb-classifier
+```
   
 Сборка с кэшированием модели
 ```docker build --build-arg CACHE_MODEL=true -t fb-classifier```
@@ -450,8 +446,6 @@ ls -la models/best_model.pth
   
 Решение:
 
-env
-
 BATCH_SIZE=16  Уменьшите размер батча
 
 IMAGE_SIZE=128  Уменьшите размер изображения
@@ -460,15 +454,20 @@ IMAGE_SIZE=128  Уменьшите размер изображения
   
 Решение:
 
-```bash```
-
 Используйте меньшую модель
 
-```MODEL_NAME=efficientnet_b0```  # Вместо b2
+```
+bash
+MODEL_NAME=efficientnet_b0
+```
+Вместо b2
   
 Или оптимизируйте модель
 
-```python -m app.optimize --model models/best_model.pth --output models/optimized.pt```
+```
+bash
+python -m app.optimize --model models/best_model.pth --output models/optimized.pt
+```
 
 
   
