@@ -44,34 +44,55 @@ FB/
 
 Кратко по слоям:
 •	app/domain - бизнес-логика классификации вагонов без привязки к FastAPI или модели
+
 •	app/application - оркестрация сценария предсказания через ClassifyUseCase
+
 •	app/infrastructure - конкретные реализации для модели EfficientNet, preprocessing, загрузки изображений
+
 •	app/interfaces - REST API слой (FastAPI) и CLI интерфейс
+
 •	app/core/config.py - единая точка доступа к переменным окружения
 
 Технологии
 •	Python 3.10+
+
 •	FastAPI - веб-фреймворк для API
+
 •	PyTorch – язык для программирования 
+
 •	TorchVision - модели и трансформации (EfficientNet-B2)
+
 •	EfficientNet-B2 - предобученная модель для классификации
+
 •	OpenCV - обработка изображений
+
 •	NumPy - работа с массивами
+
 •	Pillow - работа с изображениями
+
 •	scikit-learn - метрики и визуализация
+
 •	Matplotlib, Seaborn - визуализация результатов
+
 •	Pytest - тестирование
+
 •	Flake8, Pylint, Mypy, Black, isort - качество кода
+
 •	GitHub Actions - CI/CD
+
 •	Docker - контейнеризация
+
 •	uv - менеджер зависимостей
 
 Установка и запуск
 
 Требования
 •	Python 3.9
+
 •	CUDA (опционально, для GPU)
+
 •	pip или uv (рекомендуется)
+
 •	Docker (опционально)
 
 Локальный запуск через uv
