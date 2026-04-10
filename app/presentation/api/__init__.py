@@ -1,5 +1,7 @@
-"""API маршруты приложения"""
+"""
+API презентационный слой
+"""
 
-from app.api.routes import router
+from .routes import router
 
 __all__ = ["router"]

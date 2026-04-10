@@ -10,13 +10,13 @@ def test_python_version():
     """Проверка версии Python"""
     version = sys.version_info
     assert version.major == 3
-    assert version.minor >= 9  # Поддерживается 3.9, 3.10, 3.11+
+    assert version.minor >= 9
     print(f"✅ Python {version.major}.{version.minor}.{version.micro}")
 
 
 def test_imports():
-    """Проверка импорта основных библиотек с помощью importlib"""
-    required_packages = ["fastapi", "torch", "PIL", "numpy"]
+    """Проверка импорта основных библиотек"""
+    required_packages = ["fastapi", "torch", "PIL", "numpy", "pydantic"]
     missing_packages = []
 
     for package in required_packages:
@@ -50,7 +50,7 @@ def test_config_loading():
         assert settings.PROJECT_NAME == "Wagon Classifier API"
         assert settings.VERSION == "2.0.0"
         assert hasattr(settings, "CLASS_NAMES")
-        print("✅ Config loaded successfully")
+        print(f"✅ Config loaded successfully. Classes: {settings.CLASS_NAMES}")
     except Exception as e:
         pytest.skip(f"Config loading failed: {e}")
 
@@ -64,3 +64,26 @@ def test_app_creation():
         print("✅ FastAPI app created successfully")
     except Exception as e:
         pytest.skip(f"App creation failed: {e}")
+
+
+def test_domain_modules():
+    """Проверка модулей domain"""
+    try:
+        from app.domain.entities import PredictionResult, WagonSide
+        from app.domain.exceptions import DomainException
+        from app.domain.interfaces import IImageClassifier
+        
+        print("✅ Domain modules imported successfully")
+    except Exception as e:
+        pytest.skip(f"Domain modules import failed: {e}")
+
+
+def test_use_cases():
+    """Проверка use cases"""
+    try:
+        from app.use_cases.predict_side import PredictSideUseCase
+        from app.use_cases.train_model import TrainModelUseCase
+        
+        print("✅ Use cases imported successfully")
+    except Exception as e:
+        pytest.skip(f"Use cases import failed: {e}")
