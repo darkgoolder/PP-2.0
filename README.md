@@ -253,9 +253,9 @@ API_HOST	Хост для FastAPI	0.0.0.0
 API_PORT	Порт для FastAPI	8000
 LOG_LEVEL	Уровень логирования	INFO
 ```
-
+  
 # Тестирование и качество кода
-
+  
 Запуск unit-тестов
 ```
 bash
@@ -266,20 +266,21 @@ uv run pytest -q
 bash
 uv run pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=80
 ```
-Запуск проверок качества
-```
-bash
-```
+# Запуск проверок качества
+  
 Форматирование
 ```
+bash
 uv run black --check app tests
 uv run isort --check-only app tests
 ```
-
+  
 Type checking
 ```
+bash
 uv run mypy app
 ```
+  
 # Производительность модели:
   
 Метрика	                    |  Значение
@@ -307,9 +308,6 @@ weighted avg       0.94      0.94      0.94       450
   
 # Docker
   
-Сборка образа
-```bash```
-  
 Стандартная сборка
 ```
 bash
@@ -317,7 +315,11 @@ docker build -t fb-classifier
 ```
   
 Сборка с кэшированием модели
-```docker build --build-arg CACHE_MODEL=true -t fb-classifier```
+  
+```
+bash
+docker build --build-arg CACHE_MODEL=true -t fb-classifier
+```
   
 Запуск контейнера
 ```
