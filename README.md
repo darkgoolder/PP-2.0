@@ -17,8 +17,11 @@ Image → Preprocessing → EfficientNet-B2 Inference → Softmax → Classifica
 ```
   
 Возможные классы:
+
 •	pered - передняя часть вагона
+
 •	zad - задняя часть вагона
+
 •	none - вагон не обнаружен на изображении
   
 # Архитектура проекта
