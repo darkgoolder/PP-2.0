@@ -31,3 +31,23 @@ class TrainingException(DomainException):
 class DataPreparationException(DomainException):
     """Ошибка при подготовке данных"""
     pass
+
+
+class UserNotFoundError(DomainException):
+    """Пользователь не найден"""
+    pass
+
+
+class UserAlreadyExistsError(DomainException):
+    """Пользователь уже существует"""
+    pass
+
+
+class InvalidCredentialsError(DomainException):
+    """Неверные учетные данные"""
+    pass
+
+
+class UserNotActiveError(DomainException):
+    """Пользователь не активен"""
+    pass

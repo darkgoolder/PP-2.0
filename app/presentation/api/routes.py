@@ -226,24 +226,33 @@
 
 
 """
-API эндпоинты для классификации вагонов
+API эндпоинты для классификации вагонов и пользователей
 """
 
 import uuid
 import logging
 from typing import List
-from fastapi import APIRouter, File, UploadFile, HTTPException, status, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from app.presentation.schemas import PredictionResponse, ErrorResponse, HealthResponse
-from app.presentation.api.dependencies import get_predict_use_case
-from app.use_cases.predict_side import PredictSideUseCase
 from app.infrastructure.image_processor import process_image, validate_image_file
 from app.config import settings
+
+# Импорты для пользователей
+from app.presentation.schemas import RegisterRequest, RegisterResponse, LoginRequest, LoginResponse
+from app.use_cases.register_user import RegisterUserUseCase
+from app.use_cases.login_user import LoginUserUseCase
+from app.infrastructure.user_repository import JsonUserRepository
+from app.infrastructure.password_hasher import BcryptPasswordHasher
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+# ================================================
+# Эндпоинты для проверки здоровья
+# ================================================
 
 @router.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
@@ -257,7 +266,7 @@ async def health_check():
             device=classifier.device,
             version=settings.VERSION,
         )
-    except Exception as e:
+    except Exception:
         return HealthResponse(
             status="healthy",
             model_loaded=False,
@@ -266,23 +275,35 @@ async def health_check():
         )
 
 
+# ================================================
+# Эндпоинты для предсказаний
+# ================================================
+
 @router.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
 async def predict_image(
-    file: UploadFile = File(..., description="Изображение вагона"),
-    predict_use_case: PredictSideUseCase = Depends(get_predict_use_case)
+    file: UploadFile = File(..., description="Изображение вагона")
 ):
     """Классифицирует изображение вагона"""
     try:
         validate_image_file(file, settings)
         image = process_image(file)
         
-        result = predict_use_case.predict_single(image, file.filename or "unknown")
+        from app.infrastructure.model_repository import get_classifier
+        classifier = get_classifier()
+        
+        predicted_class, confidence, probabilities = classifier.predict(image)
+        
+        response_data = {
+            "class": predicted_class,
+            "class_name": classifier.class_names_ru.get(predicted_class, predicted_class),
+            "confidence": confidence,
+            "probabilities": probabilities,
+        }
         
         return PredictionResponse(
             status="success",
-            data=result.to_dict(),
-            request_id=result.request_id,
-            timestamp=result.timestamp
+            data=response_data,
+            request_id=str(uuid.uuid4())
         )
         
     except HTTPException:
@@ -303,30 +324,36 @@ async def predict_image(
 
 @router.post("/predict-batch", tags=["Prediction"])
 async def predict_batch(
-    files: List[UploadFile] = File(..., description="Список изображений"),
-    predict_use_case: PredictSideUseCase = Depends(get_predict_use_case)
+    files: List[UploadFile] = File(..., description="Список изображений")
 ):
     """Пакетная классификация изображений"""
     try:
+        from app.infrastructure.model_repository import get_classifier
+        classifier = get_classifier()
         results = []
         
         for file in files:
             try:
                 validate_image_file(file, settings)
                 image = process_image(file)
-                result = predict_use_case.predict_single(image, file.filename or "unknown")
+                predicted_class, confidence, probabilities = classifier.predict(image)
                 
                 results.append({
                     "filename": file.filename,
                     "success": True,
-                    "result": result.to_dict()
+                    "result": {
+                        "class": predicted_class,
+                        "class_name": classifier.class_names_ru.get(predicted_class, predicted_class),
+                        "confidence": confidence,
+                        "probabilities": probabilities,
+                    }
                 })
-            except HTTPException as e:
-                error_detail = e.detail
-                error_message = error_detail.get("message", str(e.detail)) if isinstance(error_detail, dict) else str(e.detail)
-                results.append({"filename": file.filename, "success": False, "error": error_message})
             except Exception as e:
-                results.append({"filename": file.filename, "success": False, "error": str(e)})
+                results.append({
+                    "filename": file.filename,
+                    "success": False,
+                    "error": str(e)
+                })
         
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -342,4 +369,77 @@ async def predict_batch(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": "BATCH_ERROR", "message": str(e)}
+        )
+
+
+# ================================================
+# Эндпоинты для пользователей
+# ================================================
+
+@router.post("/register", response_model=RegisterResponse, tags=["Users"])
+async def register_user(request: RegisterRequest):
+    """Регистрация нового пользователя"""
+    try:
+        user_repository = JsonUserRepository("users.json")
+        password_hasher = BcryptPasswordHasher()
+        
+        use_case = RegisterUserUseCase(user_repository, password_hasher)
+        user = await use_case.execute(
+            username=request.username,
+            email=request.email,
+            password=request.password
+        )
+        
+        return RegisterResponse(
+            status="success",
+            user=user,
+            message="User registered successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "REGISTRATION_ERROR", "message": str(e)}
+        )
+
+
+@router.post("/login", response_model=LoginResponse, tags=["Users"])
+async def login_user(request: LoginRequest):
+    """Аутентификация пользователя"""
+    try:
+        user_repository = JsonUserRepository("users.json")
+        password_hasher = BcryptPasswordHasher()
+        
+        use_case = LoginUserUseCase(user_repository, password_hasher)
+        user = await use_case.execute(
+            username=request.username,
+            password=request.password
+        )
+        
+        return LoginResponse(
+            status="success",
+            user=user
+        )
+        
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "LOGIN_ERROR", "message": str(e)}
+        )
+
+
+@router.get("/users", tags=["Users"])
+async def get_all_users():
+    """Получить всех пользователей (админский эндпоинт)"""
+    try:
+        user_repository = JsonUserRepository("users.json")
+        users = await user_repository.get_all()
+        return {"status": "success", "users": [u.to_dict() for u in users]}
+    except Exception as e:
+        logger.error(f"Get users error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": str(e)}
         )
