@@ -10,7 +10,7 @@ tqdm
 Pillow
 pandas
 patool
-# unrar
+# unrar #разблокировать при распаковке файлов формата .rar
 # winrar
 fastapi
 uvicorn[standard]
