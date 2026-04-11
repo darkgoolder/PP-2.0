@@ -49,18 +49,14 @@ class PredictionResult:
 
 
 class UserRole(str, Enum):
-    """Роль пользователя"""
     USER = "user"
     ADMIN = "admin"
 
 
 @dataclass
 class User:
-    """
-    Сущность пользователя
-    Хранит данные о пользователе, не знает про БД
-    """
-    id: str  # Используем строковый ID (можно username или email)
+    """Сущность пользователя"""
+    id: str
     username: str
     email: str
     hashed_password: str
@@ -70,11 +66,9 @@ class User:
     last_login: datetime = None
     
     def verify_password(self, password: str, hasher) -> bool:
-        """Проверка пароля (бизнес-логика)"""
         return hasher.verify(password, self.hashed_password)
     
     def to_dict(self) -> dict:
-        """Преобразование в словарь (без пароля)"""
         return {
             "id": self.id,
             "username": self.username,

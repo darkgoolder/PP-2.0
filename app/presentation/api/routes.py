@@ -235,16 +235,15 @@ from typing import List
 from fastapi import APIRouter, File, UploadFile, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from app.presentation.schemas import PredictionResponse, ErrorResponse, HealthResponse
+from app.presentation.schemas import PredictionResponse, HealthResponse, RegisterRequest, RegisterResponse, LoginRequest, LoginResponse
 from app.infrastructure.image_processor import process_image, validate_image_file
-from app.config import settings
-
-# Импорты для пользователей
-from app.presentation.schemas import RegisterRequest, RegisterResponse, LoginRequest, LoginResponse
+from app.infrastructure.model_repository import get_classifier
+from app.infrastructure.database.connection import get_db_manager
+from app.infrastructure.database.postgres_user_repository import PostgresUserRepository
+from app.infrastructure.security.bcrypt_hasher import BcryptPasswordHasher
 from app.use_cases.register_user import RegisterUserUseCase
 from app.use_cases.login_user import LoginUserUseCase
-from app.infrastructure.user_repository import JsonUserRepository
-from app.infrastructure.password_hasher import BcryptPasswordHasher
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -258,7 +257,6 @@ router = APIRouter()
 async def health_check():
     """Проверка здоровья сервиса"""
     try:
-        from app.infrastructure.model_repository import get_classifier
         classifier = get_classifier()
         return HealthResponse(
             status="healthy",
@@ -280,17 +278,13 @@ async def health_check():
 # ================================================
 
 @router.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
-async def predict_image(
-    file: UploadFile = File(..., description="Изображение вагона")
-):
+async def predict_image(file: UploadFile = File(..., description="Изображение вагона")):
     """Классифицирует изображение вагона"""
     try:
         validate_image_file(file, settings)
         image = process_image(file)
         
-        from app.infrastructure.model_repository import get_classifier
         classifier = get_classifier()
-        
         predicted_class, confidence, probabilities = classifier.predict(image)
         
         response_data = {
@@ -323,12 +317,9 @@ async def predict_image(
 
 
 @router.post("/predict-batch", tags=["Prediction"])
-async def predict_batch(
-    files: List[UploadFile] = File(..., description="Список изображений")
-):
+async def predict_batch(files: List[UploadFile] = File(..., description="Список изображений")):
     """Пакетная классификация изображений"""
     try:
-        from app.infrastructure.model_repository import get_classifier
         classifier = get_classifier()
         results = []
         
@@ -373,73 +364,166 @@ async def predict_batch(
 
 
 # ================================================
-# Эндпоинты для пользователей
+# Эндпоинты для пользователей (PostgreSQL)
 # ================================================
+
+# @router.post("/register", response_model=RegisterResponse, tags=["Users"])
+# async def register_user(request: RegisterRequest):
+#     """Регистрация нового пользователя"""
+#     db_manager = get_db_manager()
+#     if not db_manager:
+#         raise HTTPException(status_code=503, detail="Database not available. Please check DATABASE_URL.")
+    
+#     try:
+#         async for session in db_manager.get_session():
+#             user_repository = PostgresUserRepository(session)
+#             password_hasher = BcryptPasswordHasher()
+#             use_case = RegisterUserUseCase(user_repository, password_hasher)
+            
+#             user = await use_case.execute(
+#                 username=request.username,
+#                 email=request.email,
+#                 password=request.password
+#             )
+#             return RegisterResponse(
+#                 status="success",
+#                 user=user,
+#                 message="User registered successfully"
+#             )
+#     except Exception as e:
+#         logger.error(f"Registration error: {e}")
+#         raise HTTPException(status_code=400, detail={"code": "REGISTRATION_ERROR", "message": str(e)})
+
+# @router.post("/register", response_model=RegisterResponse, tags=["Users"])
+# async def register_user(request: RegisterRequest):
+#     """Регистрация нового пользователя"""
+#     print(f"=== DEBUG: Using repository type ===")
+#     db_manager = get_db_manager()
+#     print(f"db_manager: {db_manager}")
+    
+#     if not db_manager:
+#         raise HTTPException(status_code=503, detail="Database not available. Please check DATABASE_URL.")
+    
+#     try:
+#         async for session in db_manager.get_session():
+#             print(f"session: {session}")
+#             user_repository = PostgresUserRepository(session)
+#             print(f"user_repository type: {type(user_repository).__name__}")
+#             print(f"user_repository session: {user_repository.session}")
+            
+#             password_hasher = BcryptPasswordHasher()
+#             use_case = RegisterUserUseCase(user_repository, password_hasher)
+            
+#             user = await use_case.execute(
+#                 username=request.username,
+#                 email=request.email,
+#                 password=request.password
+#             )
+#             print(f"User created with ID: {user['id']}")
+            
+#             return RegisterResponse(
+#                 status="success",
+#                 user=user,
+#                 message="User registered successfully"
+#             )
+#     except Exception as e:
+#         print(f"!!! EXCEPTION: {e}")
+#         logger.error(f"Registration error: {e}")
+#         raise HTTPException(status_code=400, detail={"code": "REGISTRATION_ERROR", "message": str(e)})
 
 @router.post("/register", response_model=RegisterResponse, tags=["Users"])
 async def register_user(request: RegisterRequest):
-    """Регистрация нового пользователя"""
+    """Регистрация нового пользователя - УПРОЩЁННАЯ ВЕРСИЯ ДЛЯ ТЕСТА"""
+    
+    db_manager = get_db_manager()
+    if not db_manager:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    session = None
     try:
-        user_repository = JsonUserRepository("users.json")
-        password_hasher = BcryptPasswordHasher()
+        async for sess in db_manager.get_session():
+            session = sess
+            break
         
-        use_case = RegisterUserUseCase(user_repository, password_hasher)
-        user = await use_case.execute(
+        print("=== SESSION ACQUIRED ===")
+        
+        from app.infrastructure.database.models import UserModel
+        import uuid
+        from datetime import datetime
+        
+        new_user = UserModel(
+            id=str(uuid.uuid4()),
             username=request.username,
             email=request.email,
-            password=request.password
+            hashed_password="test_hash",
+            created_at=datetime.now()
         )
+        
+        session.add(new_user)
+        print(f"=== ADDED TO SESSION: {new_user.username} ===")
+        
+        await session.flush()
+        print("=== FLUSH DONE ===")
+        
+        # ЯВНЫЙ КОММИТ
+        await session.commit()
+        print("=== COMMIT DONE ===")
         
         return RegisterResponse(
             status="success",
-            user=user,
+            user={
+                "id": str(new_user.id),
+                "username": new_user.username,
+                "email": new_user.email,
+                "role": "user",
+                "is_active": True,
+                "created_at": new_user.created_at.isoformat(),
+                "last_login": None
+            },
             message="User registered successfully"
         )
-        
     except Exception as e:
-        logger.error(f"Registration error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "REGISTRATION_ERROR", "message": str(e)}
-        )
+        if session:
+            await session.rollback()
+        print(f"ERROR: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/login", response_model=LoginResponse, tags=["Users"])
 async def login_user(request: LoginRequest):
     """Аутентификация пользователя"""
+    db_manager = get_db_manager()
+    if not db_manager:
+        raise HTTPException(status_code=503, detail="Database not available. Please check DATABASE_URL.")
+    
     try:
-        user_repository = JsonUserRepository("users.json")
-        password_hasher = BcryptPasswordHasher()
-        
-        use_case = LoginUserUseCase(user_repository, password_hasher)
-        user = await use_case.execute(
-            username=request.username,
-            password=request.password
-        )
-        
-        return LoginResponse(
-            status="success",
-            user=user
-        )
-        
+        async for session in db_manager.get_session():
+            user_repository = PostgresUserRepository(session)
+            password_hasher = BcryptPasswordHasher()
+            use_case = LoginUserUseCase(user_repository, password_hasher)
+            
+            user = await use_case.execute(
+                username=request.username,
+                password=request.password
+            )
+            return LoginResponse(status="success", user=user)
     except Exception as e:
         logger.error(f"Login error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "LOGIN_ERROR", "message": str(e)}
-        )
+        raise HTTPException(status_code=401, detail={"code": "LOGIN_ERROR", "message": str(e)})
 
 
 @router.get("/users", tags=["Users"])
 async def get_all_users():
-    """Получить всех пользователей (админский эндпоинт)"""
+    """Получить всех пользователей"""
+    db_manager = get_db_manager()
+    if not db_manager:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     try:
-        user_repository = JsonUserRepository("users.json")
-        users = await user_repository.get_all()
-        return {"status": "success", "users": [u.to_dict() for u in users]}
+        async for session in db_manager.get_session():
+            user_repository = PostgresUserRepository(session)
+            users = await user_repository.get_all()
+            return {"status": "success", "users": [u.to_dict() for u in users]}
     except Exception as e:
         logger.error(f"Get users error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"message": str(e)}
-        )
+        raise HTTPException(status_code=500, detail={"message": str(e)})

@@ -122,6 +122,7 @@
 Основной файл приложения FastAPI
 """
 
+from app.infrastructure.database.connection import DatabaseManager, set_db_manager
 from app.infrastructure.metrics import MetricsMiddleware, get_metrics
 from app.config import settings
 from fastapi import FastAPI
@@ -188,26 +189,53 @@ async def root():
 
 @app.on_event("startup")
 async def startup_event():
-    """Загрузка модели при старте"""
+    """Загрузка модели и инициализация БД при старте"""
     logger.info("=" * 50)
     logger.info(f"Запуск {settings.PROJECT_NAME} v{settings.VERSION}")
     logger.info("=" * 50)
 
+    # ============================================
+    # ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (ДОБАВЛЕНО)
+    # ============================================
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            db_manager = DatabaseManager(database_url)
+            await db_manager.initialize()
+            set_db_manager(db_manager)
+            logger.info("✅ PostgreSQL database connected")
+        except Exception as e:
+            logger.warning(f"⚠️ PostgreSQL not available: {e}")
+            logger.info("ℹ️ Continuing without database (user registration disabled)")
+    else:
+        logger.info("ℹ️ DATABASE_URL not set, running without database")
+
+    # ============================================
+    # ЗАГРУЗКА МОДЕЛИ (СУЩЕСТВУЮЩИЙ КОД)
+    # ============================================
     if not os.path.exists(settings.MODEL_PATH):
-        logger.warning(f"Модель не найдена: {settings.MODEL_PATH}")
+        logger.warning(f"⚠️ Модель не найдена: {settings.MODEL_PATH}")
         logger.info("Обучите модель: python -m app.presentation.cli.train_cli --data-dir /path/to/data")
     else:
         try:
             from app.infrastructure.model_repository import get_classifier
             classifier = get_classifier()
-            logger.info(f"Модель загружена на устройство: {classifier.device}")
-            logger.info(f"Доступные классы: {classifier.class_names}")
+            logger.info(f"✅ Модель загружена на устройство: {classifier.device}")
+            logger.info(f"📋 Доступные классы: {classifier.class_names}")
         except Exception as e:
-            logger.error(f"Ошибка при загрузке модели: {e}")
+            logger.error(f"❌ Ошибка при загрузке модели: {e}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    """Остановка сервиса"""
+    # Закрываем соединение с БД
+    from app.infrastructure.database.connection import get_db_manager
+    db_manager = get_db_manager()
+    if db_manager:
+        await db_manager.close()
+        logger.info("Database connection closed")
+    
     logger.info("Остановка API сервиса")
 
 
