@@ -123,10 +123,14 @@ source .venv/bin/activate  # Linux/Mac
 .venv\Scripts\activate     # Windows
 ```
   
-3.	Установите зависимости через uv:
+3.	Установите зависимости:
 ```
 bash
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex" #установка uv
 uv sync --all-groups
+#или
+uv venv --python 3.9 .venv
+#или через pip
 ```
   
 4.	Скопируйте и настройте переменные окружения:
@@ -475,6 +479,11 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 --force-reinstall #если ваша ОС не хочет работать с версией 128 
 ```
 
+Или установка зависимостей через uv:
+```
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+uv venv --python 3.9 .venv
+```
 
 
 Проверка параметров вашего устройства для работы с CUDA:
@@ -501,7 +510,6 @@ if torch.cuda.is_available():
     print(f"Тест умножения матриц на GPU прошел успешно!")
     print(f"Результат:\n{z}")
 ```
-
 
 Войти в папку:
 ```Command Prompt
