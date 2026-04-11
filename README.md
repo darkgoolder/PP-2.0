@@ -513,12 +513,6 @@ cd PP-2.0
 
 
 
-Установка библиотек:
-```Command Prompt
-pip install -r requirements.txt
-```
-
-
 
 Запуск обучения:
 ```Command Prompt
