@@ -107,3 +107,24 @@ class BatchPredictionResponse(BaseModel):
             }
         }
     )
+
+class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(...)
+    password: str = Field(..., min_length=6)
+
+
+class RegisterResponse(BaseModel):
+    status: str
+    user: Dict[str, Any]
+    message: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    status: str
+    user: Dict[str, Any]
