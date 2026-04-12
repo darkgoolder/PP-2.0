@@ -2,10 +2,11 @@
 Утилиты для работы с изображениями
 """
 
-import os
 import io
 import logging
-from fastapi import UploadFile, HTTPException, status
+import os
+
+from fastapi import HTTPException, UploadFile, status
 from PIL import Image, ImageFile
 
 # Разрешаем загрузку усеченных изображений

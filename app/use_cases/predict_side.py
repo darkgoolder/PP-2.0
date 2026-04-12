@@ -75,7 +75,8 @@ Use Case: Предсказание стороны вагона
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from PIL import Image
 
 from app.domain.entities import PredictionResult, WagonSide
@@ -90,7 +91,9 @@ class PredictSideUseCase:
     def __init__(self, classifier: IImageClassifier):
         self.classifier = classifier
 
-    def predict_single(self, image: Image.Image, filename: str = "unknown") -> PredictionResult:
+    def predict_single(
+        self, image: Image.Image, filename: str = "unknown"
+    ) -> PredictionResult:
         """
         Предсказание для одного изображения
 

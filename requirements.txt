@@ -25,3 +25,12 @@ pytest
 pytest-asyncio
 httpx
 prometheus-client
+sqlalchemy
+asyncpg
+alembic
+bcrypt
+passlib[bcrypt]
+psycopg2-binary
+sqlalchemy
+asyncpg
+bcrypt

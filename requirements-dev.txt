@@ -2,3 +2,5 @@ ruff
 black
 mypy
 pytest-cov
+pylint
+astroid

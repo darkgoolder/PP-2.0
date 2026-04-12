@@ -1,8 +1,31 @@
 version: '3.8'
 
 services:
+  # PostgreSQL база данных
+  db:
+    image: postgres:15-alpine
+    container_name: wagon_db
+    environment:
+      POSTGRES_USER: wagon_user
+      POSTGRES_PASSWORD: wagon_pass
+      POSTGRES_DB: wagon_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wagon_user -d wagon_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wagon_network
+
+  # FastAPI приложение
   api:
     build: .
+    container_name: wagon_api
     ports:
       - "8000:8000"
     volumes:
@@ -13,6 +36,11 @@ services:
     environment:
       - MODEL_PATH=/app/models/best_model.pth
       - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql+asyncpg://wagon_user:wagon_pass@db:5432/wagon_db
+      - DATABASE_URL_SYNC=postgresql://wagon_user:wagon_pass@db:5432/wagon_db
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -20,3 +48,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - wagon_network
+
+volumes:
+  postgres_data:
+
+networks:
+  wagon_network:
+    driver: bridge
