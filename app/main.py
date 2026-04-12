@@ -2,19 +2,20 @@
 Основной файл приложения FastAPI
 """
 
-from app.infrastructure.database.connection import DatabaseManager, set_db_manager
-from app.infrastructure.metrics import MetricsMiddleware, get_metrics
-from app.config import settings
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 import logging
 import os
 from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.config import settings
+from app.infrastructure.database.connection import DatabaseManager, set_db_manager
+from app.infrastructure.logger import setup_logging
+from app.infrastructure.metrics import MetricsMiddleware, get_metrics
 from app.presentation.api.routes import router
-from app.infrastructure.logger import setup_logging 
 
 # Настройка логирования
 setup_logging(settings.LOG_LEVEL)
@@ -63,7 +64,7 @@ async def root():
         "message": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "docs": "/docs",
-        "health": f"{settings.API_V1_PREFIX}/health"
+        "health": f"{settings.API_V1_PREFIX}/health",
     }
 
 
@@ -95,10 +96,13 @@ async def startup_event():
     # ============================================
     if not os.path.exists(settings.MODEL_PATH):
         logger.warning(f"⚠️ Модель не найдена: {settings.MODEL_PATH}")
-        logger.info("Обучите модель: python -m app.presentation.cli.train_cli --data-dir /path/to/data")
+        logger.info(
+            "Обучите модель: python -m app.presentation.cli.train_cli --data-dir /path/to/data"
+        )
     else:
         try:
             from app.infrastructure.model_repository import get_classifier
+
             classifier = get_classifier()
             logger.info(f"✅ Модель загружена на устройство: {classifier.device}")
             logger.info(f"📋 Доступные классы: {classifier.class_names}")
@@ -111,19 +115,16 @@ async def shutdown_event():
     """Остановка сервиса"""
     # Закрываем соединение с БД
     from app.infrastructure.database.connection import get_db_manager
+
     db_manager = get_db_manager()
     if db_manager:
         await db_manager.close()
         logger.info("Database connection closed")
-    
+
     logger.info("Остановка API сервиса")
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
