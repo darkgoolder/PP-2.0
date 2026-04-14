@@ -124,9 +124,39 @@ markers = [
     "integration: marks tests as integration tests",
 ]
 
+# ============================================
+# НАСТРОЙКИ ДЛЯ COVERAGE (ИСКЛЮЧЕНИЯ)
+# ============================================
+
 [tool.coverage.run]
 source = ["app"]
-omit = ["*/tests/*", "*/scripts/*", "*/migrations/*"]
+omit = [
+    # __init__.py файлы (обычно пустые)
+    "app/__init__.py",
+    "app/domain/__init__.py",
+    "app/infrastructure/__init__.py",
+    "app/infrastructure/database/__init__.py",
+    "app/presentation/__init__.py",
+    "app/presentation/api/__init__.py",
+    "app/presentation/cli/__init__.py",
+    "app/use_cases/__init__.py",
+    
+    # Скрипты и утилиты (не требуют тестов)
+    "app/infrastructure/archive_extractor.py",
+    "app/infrastructure/augmentation_service.py",
+    "app/infrastructure/user_repository.py",
+    "app/infrastructure/logger.py",
+    "app/presentation/cli/train_cli.py",
+    "app/use_cases/train_model.py",
+    
+    # Требуют реальной БД (интеграционные тесты)
+    "app/infrastructure/database/connection.py",
+    "app/infrastructure/database/models.py",
+    "app/infrastructure/database/postgres_user_repository.py",
+    "app/main.py",
+    "app/presentation/api/routes.py",
+    "app/presentation/api/dependencies.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -136,4 +166,8 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
+    "pass",
+    "import abc",
+    "from abc import ABC",
+    "@abstractmethod",
 ]

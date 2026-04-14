@@ -58,8 +58,12 @@ class RegisterUserUseCase:
         )
 
         # Сохранение
-        await self.user_repository.save(user)
-
+        await self.user_repository.create( 
+            username=user.username,
+            email=user.email,
+            hashed_password=user.hashed_password
+        )
+        
         logger.info(f"User registered: {username} ({email})")
 
         return user.to_dict()
