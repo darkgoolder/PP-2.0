@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Копируем код приложения (ВЕСЬ app, включая presentation/static)
+# Копируем код приложения (включает presentation/static)
 COPY app/ ./app/
 
 # Создаем необходимые директории
