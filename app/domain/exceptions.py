@@ -22,9 +22,9 @@ class ModelNotFoundException(DomainException):
 
 
 class ModelNotLoadedException(DomainException):
-    """Модель не загружена"""
-
-    pass
+    def __init__(self, message: str = "Модель не загружена. Сначала обучите модель"):
+        self.message = message
+        super().__init__(message)
 
 
 class TrainingException(DomainException):

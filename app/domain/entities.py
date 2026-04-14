@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
-
+import uuid
 
 class WagonSide(str, Enum):
     """Сторона вагона"""
@@ -19,13 +19,13 @@ class WagonSide(str, Enum):
 @dataclass
 class PredictionResult:
     """Результат предсказания (Value Object)"""
-
     side: WagonSide
     confidence: float
     probabilities: Dict[str, float]
     image_filename: str
+    user_id: Optional[int] = None
     timestamp: datetime = field(default_factory=datetime.now)
-    request_id: Optional[str] = None
+    request_id: Optional[str] = field(default_factory=lambda: str(uuid.uuid4()))
 
     @property
     def class_name_ru(self) -> str:
@@ -38,12 +38,12 @@ class PredictionResult:
         return names.get(self.side, self.side.value)
 
     def to_dict(self) -> Dict:
-        """Преобразование в словарь для API ответа"""
         return {
             "class": self.side.value,
             "class_name": self.class_name_ru,
             "confidence": self.confidence,
             "probabilities": self.probabilities,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
 
 
@@ -78,3 +78,11 @@ class User:
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_login": self.last_login.isoformat() if self.last_login else None,
         }
+        
+    def activate(self):
+        """Активация пользователя"""
+        self.is_active = True
+
+    def deactivate(self):
+        """Деактивация пользователя"""
+        self.is_active = False

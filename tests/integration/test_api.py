@@ -16,9 +16,18 @@ from app.main import app
 from app.config import settings
 
 
+def is_db_available():
+    """Проверка доступности БД"""
+    try:
+        from app.config import settings
+        # Простая проверка - если есть DATABASE_URL
+        import os
+        return os.getenv("DATABASE_URL") is not None
+    except:
+        return False
+
 class TestAPI:
     """Тесты API эндпоинтов"""
-
     @pytest.fixture
     def client(self):
         """Фикстура для тестового клиента"""
@@ -100,7 +109,83 @@ class TestConfigValidation:
         assert settings.PROJECT_NAME == "Wagon Classifier API"
         assert settings.VERSION == "2.0.0"
 
+
     def test_paths_exist(self):
         """Проверка существования необходимых директорий"""
         assert settings.UPLOAD_DIR.exists() or not settings.UPLOAD_DIR.exists()
         assert settings.MODEL_PATH.suffix == ".pth"
+        
+
+# class TestUserAPI:
+#     """Тесты API эндпоинтов пользователей"""
+    
+#     @pytest.fixture
+#     def client(self):
+#         return TestClient(app)
+    
+    
+#     def test_register_user_success(self, client, is_db_available):
+#         """Успешная регистрация пользователя"""
+#         # Очистить БД перед тестом (если нужно)
+#         if not is_db_available:
+#             pytest.skip("Database not available")
+            
+#         response = client.post(
+#             f"{settings.API_V1_PREFIX}/register",
+#             json={"username": "testuser", "email": "test@test.com", "password": "123456"}
+#         )
+        
+#         if response.status_code == 503:
+#             pytest.skip("Database not available")
+        
+#         assert response.status_code == 200
+#         data = response.json()
+#         assert data["status"] == "success"
+#         assert data["user"]["username"] == "testuser"
+    
+#     def test_register_user_already_exists(self, client):
+#         """Регистрация существующего пользователя"""
+#         # Сначала зарегистрировать
+#         client.post(f"{settings.API_V1_PREFIX}/register", 
+#                     json={"username": "existing", "email": "exist@test.com", "password": "123456"})
+        
+#         # Попробовать зарегистрировать снова
+#         response = client.post(
+#             f"{settings.API_V1_PREFIX}/register",
+#             json={"username": "existing", "email": "new@test.com", "password": "123456"}
+#         )
+        
+#         assert response.status_code == 400
+#         assert "already taken" in str(response.json())
+    
+#     def test_login_success(self, client):
+#         """Успешный вход"""
+#         # Регистрация
+#         client.post(f"{settings.API_V1_PREFIX}/register",
+#                     json={"username": "loginuser", "email": "login@test.com", "password": "pass123"})
+        
+#         # Вход
+#         response = client.post(
+#             f"{settings.API_V1_PREFIX}/login",
+#             json={"username": "loginuser", "password": "pass123"}
+#         )
+        
+#         if response.status_code == 503:
+#             pytest.skip("Database not available")
+        
+#         assert response.status_code == 200
+#         data = response.json()
+#         assert data["status"] == "success"
+#         assert data["user"]["username"] == "loginuser"
+    
+#     def test_login_wrong_password(self, client, is_db_available):
+#         """Вход с неверным паролем"""
+#         if not is_db_available:
+#             pytest.skip("Database not available")
+            
+#         response = client.post(
+#             f"{settings.API_V1_PREFIX}/login",
+#             json={"username": "nonexistent", "password": "wrong"}
+#         )
+        
+#         assert response.status_code == 401
