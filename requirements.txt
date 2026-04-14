@@ -34,3 +34,4 @@ psycopg2-binary
 sqlalchemy
 asyncpg
 bcrypt
+pytest-cov
