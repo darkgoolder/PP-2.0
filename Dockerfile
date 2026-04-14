@@ -15,7 +15,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Копируем requirements.txt
 COPY requirements.txt ./
 
-# Устанавливаем все зависимости (убрать --no-deps)
+# Устанавливаем все зависимости
 RUN uv pip install --system --no-cache -r requirements.txt
 
 # Финальный образ
@@ -33,14 +33,11 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Копируем код приложения
+# Копируем код приложения (ВЕСЬ app, включая presentation/static)
 COPY app/ ./app/
 
 # Создаем необходимые директории
 RUN mkdir -p models uploads
-
-# Устанавливаем uvicorn отдельно (на всякий случай)
-RUN pip install uvicorn click httptools uvloop
 
 # Переменные окружения
 ENV PYTHONPATH=/app
