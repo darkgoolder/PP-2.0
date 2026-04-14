@@ -306,7 +306,7 @@ jobs:
   # ============================================
   docker-build:
     runs-on: ubuntu-latest
-    needs: [test, test-light]
+    needs: [test, test-light, api-test]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
   
     steps:
