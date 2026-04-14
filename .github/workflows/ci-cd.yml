@@ -340,6 +340,7 @@ jobs:
           tags: |
             type=sha,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+            type=raw,value=${{ github.ref_name }}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
