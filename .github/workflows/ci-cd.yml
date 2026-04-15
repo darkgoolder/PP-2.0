@@ -117,99 +117,34 @@ jobs:
             sleep 2
           done
       
-      # ============================================
-      # ЗАПУСК ТЕСТОВ С СОХРАНЕНИЕМ РЕЗУЛЬТАТА
-      # ============================================
       - name: Run tests
-        id: tests
         run: |
           pytest tests/unit/ -v \
             --cov=app \
-            --cov-report=term \
-            --cov-report=xml:coverage.xml
+            --cov-report=term
         env:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth
           DATABASE_URL: postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db
           TESTING: "true"
       
-      # ============================================
-      # ПОЛУЧИТЬ ПРОЦЕНТ ПОКРЫТИЯ
-      # ============================================
-      - name: Get coverage percentage
-        id: coverage
+      - name: Show coverage
         run: |
-          COVERAGE=$(coverage report --skip-covered --skip-empty | grep TOTAL | awk '{print $NF}' | sed 's/%//')
-          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
-          echo "✅ Coverage: ${COVERAGE}%"
+          echo ""
+          echo "=========================================="
+          echo "COVERAGE REPORT"
+          echo "=========================================="
+          coverage report --skip-covered --skip-empty
+          echo "=========================================="
       
-      # ============================================
-      # ПОЛУЧИТЬ КОЛИЧЕСТВО ТЕСТОВ ИЗ ЛОГОВ
-      # ============================================
-      - name: Get test stats
-        id: stats
-        run: |
-          # Получаем количество тестов из вывода pytest
-          TEST_OUTPUT=$(pytest tests/unit/ --collect-only -q 2>/dev/null | tail -1)
-          TOTAL_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+' | tail -1)
-          echo "total=$TOTAL_TESTS" >> $GITHUB_OUTPUT
-      
-      # ============================================
-      # ПРОФЕССИОНАЛЬНЫЙ ОТЧЁТ
-      # ============================================
-      - name: Create detailed report
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const coverage = '${{ steps.coverage.outputs.coverage }}';
-            const totalTests = '${{ steps.stats.outputs.total }}';
-            
-            const summary = `
-            ## 📊 Отчёт о тестировании Wagon Classifier API
-            
-            ### 🧪 Результаты тестов
-            | Показатель | Значение |
-            |------------|----------|
-            | **Всего тестов** | ${totalTests} |
-            | **Пройдено** | ✅ ${totalTests} |
-            | **Провалено** | 0 |
-            | **Статус** | ✅ Все тесты пройдены успешно |
-            
-            ### 📈 Покрытие кода unit-тестами
-            | Показатель | Значение | Требование | Статус |
-            |------------|----------|------------|--------|
-            | **Unit test coverage** | **${coverage}%** | >70% | ${coverage >= 70 ? '✅ ВЫПОЛНЕНО' : '❌ НЕ ВЫПОЛНЕНО'} |
-            
-            ### 🎯 Общий вердикт
-            ${coverage >= 70 ? 
-              '✅ **ИТОГ: ЛАБОРАТОРНАЯ РАБОТА ЗАЧТЕНА**\n\nПокрытие кода unit-тестами составляет ' + coverage + '%, что превышает требуемый порог в 70%. Все тесты пройдены успешно.' : 
-              '❌ **ИТОГ: ЛАБОРАТОРНАЯ РАБОТА НЕ ЗАЧТЕНА**\n\nПокрытие кода unit-тестами составляет ' + coverage + '%, что ниже требуемого порога в 70%.'}
-            `;
-            
-            await github.rest.checks.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: '📊 Результаты тестирования',
-              head_sha: context.sha,
-              status: 'completed',
-              conclusion: coverage >= 70 ? 'success' : 'failure',
-              output: {
-                title: `Покрытие: ${coverage}% | Тесты: ✅ ${totalTests} пройдено`,
-                summary: summary
-              }
-            });
-      
-      # ============================================
-      # ПРОВЕРКА ПОРОГА
-      # ============================================
       - name: Check threshold
         run: |
-          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          COVERAGE=$(coverage report --skip-covered --skip-empty | grep TOTAL | awk '{print $NF}' | sed 's/%//')
           if [ "$COVERAGE" -lt 70 ]; then
-            echo "❌ Coverage ${COVERAGE}% is below 70%"
+            echo "FAILED: Coverage ${COVERAGE}% < 70%"
             exit 1
           fi
-          echo "✅ Coverage ${COVERAGE}% meets requirement"
+          echo "PASSED: Coverage ${COVERAGE}% >= 70%"
       
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
