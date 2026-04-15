@@ -136,12 +136,18 @@ jobs:
           echo "=========================================="
           echo ""
           
-          # Показать ВСЕ файлы (без пропуска 100%)
-          coverage report --skip-covered=false
+          # Без --skip-covered — покажет ВСЕ файлы
+          coverage report
           
           echo ""
           echo "=========================================="
-          echo "TOTAL COVERAGE: $(coverage report --skip-covered=false | grep TOTAL | awk '{print $NF}')"
+          echo "FILES WITH 100% COVERAGE:"
+          echo "=========================================="
+          coverage report | grep "100%" | grep -v "TOTAL" || echo "None"
+          
+          echo ""
+          echo "=========================================="
+          echo "TOTAL COVERAGE: $(coverage report | grep TOTAL | awk '{print $NF}')"
           echo "=========================================="
       
       - name: Check threshold
