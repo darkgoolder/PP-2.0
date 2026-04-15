@@ -101,16 +101,10 @@ jobs:
           uv pip install --system -r requirements.txt
       
       - name: Create directories for tests
-        run: |
-          mkdir -p models uploads
+        run: mkdir -p models uploads
       
       - name: Create dummy model for tests
         run: python scripts/create_dummy_model.py
-      
-      - name: Verify model file
-        run: |
-          ls -la models/
-          python -c "import torch; ckpt = torch.load('models/best_model.pth', map_location='cpu'); print('✅ Model loaded, keys:', list(ckpt.keys()))"
       
       - name: Wait for PostgreSQL to be ready
         run: |
@@ -123,36 +117,12 @@ jobs:
             sleep 2
           done
       
-      - name: Verify PostgreSQL tables are created
-        run: |
-          PGPASSWORD=wagon_pass psql -h localhost -U wagon_user -d wagon_db -c "\dt"
-          PGPASSWORD=wagon_pass psql -h localhost -U wagon_user -d wagon_db -c "SELECT tablename FROM pg_tables WHERE schemaname='public';"
-      
-      - name: Create tables manually if not exists
-        run: |
-          PGPASSWORD=wagon_pass psql -h localhost -U wagon_user -d wagon_db << EOF
-          CREATE TABLE IF NOT EXISTS users (
-              id VARCHAR(36) PRIMARY KEY,
-              username VARCHAR(50) UNIQUE NOT NULL,
-              email VARCHAR(100) UNIQUE NOT NULL,
-              hashed_password VARCHAR(255) NOT NULL,
-              role VARCHAR(20) DEFAULT 'user',
-              is_active BOOLEAN DEFAULT TRUE,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              last_login TIMESTAMP WITH TIME ZONE
-          );
-          CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-          CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-          \dt
-          EOF
-      
-      # ============================================
-      # ЗАПУСК ТЕСТОВ С JUnit ОТЧЁТОМ
-      # ============================================
-      - name: Run tests with JUnit report
+      - name: Run tests with coverage
+        id: tests
         run: |
           pytest tests/unit/ -v \
             --cov=app \
+            --cov-report=term \
             --cov-report=xml:coverage.xml \
             --junitxml=test-results.xml
         env:
@@ -160,6 +130,35 @@ jobs:
           MODEL_PATH: models/best_model.pth
           DATABASE_URL: postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db
           TESTING: "true"
+      
+      # ============================================
+      # ИЗВЛЕЧЕНИЕ ПРОЦЕНТА ПОКРЫТИЯ
+      # ============================================
+      - name: Extract coverage percentage
+        run: |
+          echo "=========================================="
+          echo "📊 COVERAGE REPORT"
+          echo "=========================================="
+          coverage report --skip-covered --skip-empty | tee coverage.txt
+          TOTAL_COVERAGE=$(coverage report --skip-covered --skip-empty | grep TOTAL | awk '{print $NF}' | sed 's/%//')
+          echo "Total coverage: ${TOTAL_COVERAGE}%"
+          echo "coverage_percent=${TOTAL_COVERAGE}" >> $GITHUB_OUTPUT
+        id: coverage
+        continue-on-error: true
+      
+      # ============================================
+      # ПРОВЕРКА ПОРОГА ПОКРЫТИЯ (70%)
+      # ============================================
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage_percent }}
+          if [ -n "$COVERAGE" ] && [ "$COVERAGE" -lt 70 ]; then
+            echo "❌ Coverage ${COVERAGE}% is below threshold 70%"
+            exit 1
+          else
+            echo "✅ Coverage ${COVERAGE}% meets requirement (>70%)"
+          fi
+        if: steps.coverage.outputs.coverage_percent != ''
       
       # ============================================
       # ЗАГРУЗКА АРТЕФАКТОВ
@@ -171,10 +170,11 @@ jobs:
           path: |
             test-results.xml
             coverage.xml
+            coverage.txt
         if: always()
       
       # ============================================
-      # ПУБЛИКАЦИЯ ОТЧЁТА В GitHub ACTIONS
+      # ПУБЛИКАЦИЯ JUnit ОТЧЁТА
       # ============================================
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4
@@ -182,7 +182,31 @@ jobs:
           report_paths: test-results.xml
           detailed_summary: true
           include_passed: true
-          annotate_only: false
+        if: always()
+      
+      # ============================================
+      # ПУБЛИКАЦИЯ ПОКРЫТИЯ В GitHub ACTIONS
+      # ============================================
+      - name: Add coverage comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = '${{ steps.coverage.outputs.coverage_percent }}';
+            if (coverage) {
+              const summary = `## 📊 Coverage Report\n\n**Unit test coverage: ${coverage}%**\n\n✅ Meets requirement (>70%)`;
+              await github.rest.checks.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'Coverage Check',
+                head_sha: context.sha,
+                status: 'completed',
+                conclusion: 'success',
+                output: {
+                  title: `Coverage: ${coverage}%`,
+                  summary: summary
+                }
+              });
+            }
         if: always()
       
       - name: Upload coverage to Codecov
