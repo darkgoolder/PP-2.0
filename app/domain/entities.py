@@ -2,11 +2,12 @@
 Сущности предметной области
 """
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
-import uuid
+
 
 class WagonSide(str, Enum):
     """Сторона вагона"""
@@ -19,6 +20,7 @@ class WagonSide(str, Enum):
 @dataclass
 class PredictionResult:
     """Результат предсказания (Value Object)"""
+
     side: WagonSide
     confidence: float
     probabilities: Dict[str, float]
@@ -78,7 +80,7 @@ class User:
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_login": self.last_login.isoformat() if self.last_login else None,
         }
-        
+
     def activate(self):
         """Активация пользователя"""
         self.is_active = True
