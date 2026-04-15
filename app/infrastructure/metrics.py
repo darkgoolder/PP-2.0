@@ -3,19 +3,20 @@
 Сбор статистики о работе API и модели
 """
 
-import time
-import re
-from typing import Callable
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware  # <-- ДОБАВИТЬ
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-)
 import logging
+import re
+import time
+from typing import Callable
+
+from fastapi import Request, Response
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+from starlette.middleware.base import BaseHTTPMiddleware  # <-- ДОБАВИТЬ
 
 logger = logging.getLogger(__name__)
 

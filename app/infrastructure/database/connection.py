@@ -2,10 +2,11 @@
 Подключение к PostgreSQL
 """
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
 import logging
 import os
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class DatabaseManager:
         self.database_url = database_url
         self.engine = None
         self.async_session_maker = None
-    
+
     async def initialize(self):
         self.engine = create_async_engine(
             self.database_url,
@@ -25,18 +26,16 @@ class DatabaseManager:
             pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
             pool_pre_ping=True,
         )
-        
+
         self.async_session_maker = async_sessionmaker(
-            self.engine, 
-            class_=AsyncSession, 
-            expire_on_commit=False
+            self.engine, class_=AsyncSession, expire_on_commit=False
         )
-        
+
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        
+
         logger.info("✅ PostgreSQL initialized")
-    
+
     async def get_session(self):
         """Получение сессии"""
         async with self.async_session_maker() as session:
@@ -51,7 +50,7 @@ class DatabaseManager:
                 raise
             finally:
                 await session.close()
-        
+
         async def close(self):
             if self.engine:
                 await self.engine.dispose()

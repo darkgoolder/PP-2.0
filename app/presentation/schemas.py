@@ -2,9 +2,10 @@
 Pydantic схемы для валидации данных API
 """
 
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, Optional, List, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PredictionResponse(BaseModel):
@@ -107,6 +108,7 @@ class BatchPredictionResponse(BaseModel):
             }
         }
     )
+
 
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
