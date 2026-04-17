@@ -17,14 +17,21 @@ from app.infrastructure.logger import setup_logging
 from app.infrastructure.metrics import MetricsMiddleware, get_metrics
 from app.presentation.api.routes import router
 
+# ============================================
+# НОВЫЕ ИМПОРТЫ ДЛЯ СЕКРЕТОВ
+# ============================================
+from app.presentation.api.secrets_router import router as secrets_router
+from app.infrastructure import s3_storage, secret_repository
+from app.infrastructure.encryption_service import encryption_service
+
 # Настройка логирования
-setup_logging(settings.LOG_LEVEL)
+print(f"LOG_LEVEL: {settings.log_level}")
 logger = logging.getLogger(__name__)
 
 # Создаем приложение
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
+    title=settings.project_name,
+    version=settings.version,
     description="API для классификации вагонов по изображениям",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -39,14 +46,19 @@ app.add_api_route("/metrics", get_metrics, methods=["GET"], include_in_schema=Fa
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Подключаем API роуты
-app.include_router(router, prefix=settings.API_V1_PREFIX)
+app.include_router(router, prefix=settings.api_v1_prefix)
+
+# ============================================
+# НОВЫЙ РОУТЕР ДЛЯ СЕКРЕТОВ
+# ============================================
+app.include_router(secrets_router, prefix=settings.api_v1_prefix)
 
 # Статические файлы (веб-интерфейс)
 static_dir = Path(__file__).parent / "presentation" / "static"
@@ -61,10 +73,10 @@ async def root():
     if static_index.exists():
         return FileResponse(str(static_index))
     return {
-        "message": settings.PROJECT_NAME,
-        "version": settings.VERSION,
+        "message": settings.project_name,
+        "version": settings.version,
         "docs": "/docs",
-        "health": f"{settings.API_V1_PREFIX}/health",
+        "health": f"{settings.api_v1_prefix}/health",
     }
 
 
@@ -72,11 +84,41 @@ async def root():
 async def startup_event():
     """Загрузка модели и инициализация БД при старте"""
     logger.info("=" * 50)
-    logger.info(f"Запуск {settings.PROJECT_NAME} v{settings.VERSION}")
+    logger.info(f"Запуск {settings.project_name} v{settings.version}")
     logger.info("=" * 50)
 
     # ============================================
-    # ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (ДОБАВЛЕНО)
+    # ИНИЦИАЛИЗАЦИЯ S3 И СЕКРЕТОВ (НОВОЕ)
+    # ============================================
+    logger.info("🔄 Инициализация S3 хранилища...")
+    try:
+        # Проверка подключения к S3
+        await s3_storage.list_objects(settings.secrets_bucket)
+        logger.info(f"✅ S3 подключен: {settings.minio_endpoint}")
+        logger.info(f"📦 Бакет секретов: {settings.secrets_bucket}")
+        
+        # Проверка ключа шифрования
+        logger.info("🔐 Проверка системы шифрования...")
+        test_encrypt = encryption_service.encrypt("test")
+        test_decrypt = encryption_service.decrypt(test_encrypt)
+        if test_decrypt == "test":
+            logger.info("✅ Система шифрования работает")
+        else:
+            logger.warning("⚠️ Проблема с шифрованием")
+        
+        # Проверка существующих секретов
+        secret_keys = await secret_repository.list_secret_keys()
+        if secret_keys:
+            logger.info(f"📋 Найдено секретов в S3: {len(secret_keys)}")
+        else:
+            logger.info("ℹ️ Секреты в S3 не найдены (будут созданы при первом сохранении)")
+            
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения к S3: {e}")
+        logger.warning("⚠️ Сервис секретов будет недоступен")
+
+    # ============================================
+    # ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (СУЩЕСТВУЮЩИЙ КОД)
     # ============================================
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -94,8 +136,8 @@ async def startup_event():
     # ============================================
     # ЗАГРУЗКА МОДЕЛИ (СУЩЕСТВУЮЩИЙ КОД)
     # ============================================
-    if not os.path.exists(settings.MODEL_PATH):
-        logger.warning(f"⚠️ Модель не найдена: {settings.MODEL_PATH}")
+    if not os.path.exists(settings.model_path):
+        logger.warning(f"⚠️ Модель не найдена: {settings.model_path}")
         logger.info(
             "Обучите модель: python -m app.presentation.cli.train_cli --data-dir /path/to/data"
         )
