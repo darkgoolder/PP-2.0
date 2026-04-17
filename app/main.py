@@ -1,3 +1,4 @@
+# app/main.py
 """
 Основной файл приложения FastAPI
 """
@@ -16,16 +17,10 @@ from app.infrastructure.database.connection import DatabaseManager, set_db_manag
 from app.infrastructure.logger import setup_logging
 from app.infrastructure.metrics import MetricsMiddleware, get_metrics
 from app.presentation.api.routes import router
-
-# ============================================
-# НОВЫЕ ИМПОРТЫ ДЛЯ СЕКРЕТОВ
-# ============================================
 from app.presentation.api.secrets_router import router as secrets_router
-from app.infrastructure import s3_storage, secret_repository
-from app.infrastructure.encryption_service import encryption_service
 
 # Настройка логирования
-print(f"LOG_LEVEL: {settings.log_level}")
+setup_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 # Создаем приложение
@@ -43,10 +38,10 @@ app.add_middleware(MetricsMiddleware)
 # Добавляем эндпоинт для метрик Prometheus
 app.add_api_route("/metrics", get_metrics, methods=["GET"], include_in_schema=False)
 
-# Настройка CORS
+# Настройка CORS (без ALLOWED_ORIGINS - разрешаем все для простоты)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,10 +49,6 @@ app.add_middleware(
 
 # Подключаем API роуты
 app.include_router(router, prefix=settings.api_v1_prefix)
-
-# ============================================
-# НОВЫЙ РОУТЕР ДЛЯ СЕКРЕТОВ
-# ============================================
 app.include_router(secrets_router, prefix=settings.api_v1_prefix)
 
 # Статические файлы (веб-интерфейс)
@@ -88,37 +79,19 @@ async def startup_event():
     logger.info("=" * 50)
 
     # ============================================
-    # ИНИЦИАЛИЗАЦИЯ S3 И СЕКРЕТОВ (НОВОЕ)
+    # ИНИЦИАЛИЗАЦИЯ S3 И СЕКРЕТОВ
     # ============================================
     logger.info("🔄 Инициализация S3 хранилища...")
     try:
-        # Проверка подключения к S3
+        from app.infrastructure import s3_storage
         await s3_storage.list_objects(settings.secrets_bucket)
         logger.info(f"✅ S3 подключен: {settings.minio_endpoint}")
         logger.info(f"📦 Бакет секретов: {settings.secrets_bucket}")
-        
-        # Проверка ключа шифрования
-        logger.info("🔐 Проверка системы шифрования...")
-        test_encrypt = encryption_service.encrypt("test")
-        test_decrypt = encryption_service.decrypt(test_encrypt)
-        if test_decrypt == "test":
-            logger.info("✅ Система шифрования работает")
-        else:
-            logger.warning("⚠️ Проблема с шифрованием")
-        
-        # Проверка существующих секретов
-        secret_keys = await secret_repository.list_secret_keys()
-        if secret_keys:
-            logger.info(f"📋 Найдено секретов в S3: {len(secret_keys)}")
-        else:
-            logger.info("ℹ️ Секреты в S3 не найдены (будут созданы при первом сохранении)")
-            
     except Exception as e:
-        logger.error(f"❌ Ошибка подключения к S3: {e}")
-        logger.warning("⚠️ Сервис секретов будет недоступен")
+        logger.warning(f"⚠️ S3 недоступен: {e}")
 
     # ============================================
-    # ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (СУЩЕСТВУЮЩИЙ КОД)
+    # ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ
     # ============================================
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -129,25 +102,19 @@ async def startup_event():
             logger.info("✅ PostgreSQL database connected")
         except Exception as e:
             logger.warning(f"⚠️ PostgreSQL not available: {e}")
-            logger.info("ℹ️ Continuing without database (user registration disabled)")
     else:
         logger.info("ℹ️ DATABASE_URL not set, running without database")
 
     # ============================================
-    # ЗАГРУЗКА МОДЕЛИ (СУЩЕСТВУЮЩИЙ КОД)
+    # ЗАГРУЗКА МОДЕЛИ
     # ============================================
     if not os.path.exists(settings.model_path):
         logger.warning(f"⚠️ Модель не найдена: {settings.model_path}")
-        logger.info(
-            "Обучите модель: python -m app.presentation.cli.train_cli --data-dir /path/to/data"
-        )
     else:
         try:
             from app.infrastructure.model_repository import get_classifier
-
             classifier = get_classifier()
             logger.info(f"✅ Модель загружена на устройство: {classifier.device}")
-            logger.info(f"📋 Доступные классы: {classifier.class_names}")
         except Exception as e:
             logger.error(f"❌ Ошибка при загрузке модели: {e}")
 
@@ -155,18 +122,14 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Остановка сервиса"""
-    # Закрываем соединение с БД
     from app.infrastructure.database.connection import get_db_manager
-
     db_manager = get_db_manager()
     if db_manager:
         await db_manager.close()
         logger.info("Database connection closed")
-
     logger.info("Остановка API сервиса")
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

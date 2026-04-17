@@ -40,10 +40,7 @@ class S3StorageService:
     async def get_object(self, bucket: str, key: str) -> Optional[bytes]:
         """Получение объекта из S3"""
         try:
-            response = self.client.get_object(
-                bucket_name=bucket,
-                object_name=key
-            )
+            response = self.client.get_object(bucket_name=bucket, object_name=key)
             data = response.read()
             response.close()
             response.release_conn()
@@ -57,7 +54,6 @@ class S3StorageService:
     async def put_object(self, bucket: str, key: str, data: bytes) -> bool:
         """Сохранение объекта в S3"""
         try:
-            # Преобразуем bytes в BytesIO для совместимости
             data_stream = BytesIO(data)
             self.client.put_object(
                 bucket_name=bucket,
@@ -75,10 +71,7 @@ class S3StorageService:
     async def delete_object(self, bucket: str, key: str) -> bool:
         """Удаление объекта из S3"""
         try:
-            self.client.remove_object(
-                bucket_name=bucket,
-                object_name=key
-            )
+            self.client.remove_object(bucket_name=bucket, object_name=key)
             logger.info(f"Удалён объект: {key}")
             return True
         except S3Error as e:
@@ -97,14 +90,6 @@ class S3StorageService:
         except S3Error as e:
             logger.error(f"Ошибка получения списка: {e}")
             return []
-    
-    async def object_exists(self, bucket: str, key: str) -> bool:
-        """Проверка существования объекта"""
-        try:
-            self.client.stat_object(bucket_name=bucket, object_name=key)
-            return True
-        except S3Error:
-            return False
 
 
 # Глобальный экземпляр
