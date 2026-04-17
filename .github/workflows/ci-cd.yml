@@ -101,16 +101,10 @@ jobs:
           uv pip install --system -r requirements.txt
       
       - name: Create directories for tests
-        run: |
-          mkdir -p models uploads
+        run: mkdir -p models uploads
       
       - name: Create dummy model for tests
         run: python scripts/create_dummy_model.py
-      
-      - name: Verify model file
-        run: |
-          ls -la models/
-          python -c "import torch; ckpt = torch.load('models/best_model.pth', map_location='cpu'); print('✅ Model loaded, keys:', list(ckpt.keys()))"
       
       - name: Wait for PostgreSQL to be ready
         run: |
@@ -123,43 +117,55 @@ jobs:
             sleep 2
           done
       
-      - name: Verify PostgreSQL tables are created
+      - name: Run tests
         run: |
-          PGPASSWORD=wagon_pass psql -h localhost -U wagon_user -d wagon_db -c "\dt"
-          PGPASSWORD=wagon_pass psql -h localhost -U wagon_user -d wagon_db -c "SELECT tablename FROM pg_tables WHERE schemaname='public';"
-      
-      - name: Create tables manually if not exists
-        run: |
-          PGPASSWORD=wagon_pass psql -h localhost -U wagon_user -d wagon_db << EOF
-          CREATE TABLE IF NOT EXISTS users (
-              id VARCHAR(36) PRIMARY KEY,
-              username VARCHAR(50) UNIQUE NOT NULL,
-              email VARCHAR(100) UNIQUE NOT NULL,
-              hashed_password VARCHAR(255) NOT NULL,
-              role VARCHAR(20) DEFAULT 'user',
-              is_active BOOLEAN DEFAULT TRUE,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              last_login TIMESTAMP WITH TIME ZONE
-          );
-          CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-          CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-          \dt
-          EOF
-      
-      - name: Run tests with coverage
-        run: |
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
+          pytest tests/unit/ -v \
+            --cov=app \
+            --cov-report=term
         env:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth
           DATABASE_URL: postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db
           TESTING: "true"
       
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Show coverage
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "UNIT TEST COVERAGE REPORT"
+          echo "=========================================="
+          echo ""
+          
+          # Без --skip-covered — покажет ВСЕ файлы
+          coverage report
+          
+          echo ""
+          echo "=========================================="
+          echo "FILES WITH 100% COVERAGE:"
+          echo "=========================================="
+          coverage report | grep "100%" | grep -v "TOTAL" || echo "None"
+          
+          echo ""
+          echo "=========================================="
+          echo "TOTAL COVERAGE: $(coverage report | grep TOTAL | awk '{print $NF}')"
+          echo "=========================================="
+      
+      - name: Check threshold
+        run: |
+          COVERAGE=$(coverage report --skip-covered --skip-empty | grep TOTAL | awk '{print $NF}' | sed 's/%//')
+          if [ "$COVERAGE" -lt 70 ]; then
+            echo "FAILED: Coverage ${COVERAGE}% < 70%"
+            exit 1
+          fi
+          echo "PASSED: Coverage ${COVERAGE}% >= 70%"
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+          name: coverage-report
+          path: coverage.xml
+        if: always()
+
 
     # ============================================
   # JOB 3: API Endpoint Tests
