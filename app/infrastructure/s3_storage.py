@@ -1,7 +1,8 @@
 # app/infrastructure/s3_storage.py
 import logging
-from typing import Optional, List
 from io import BytesIO
+from typing import List, Optional
+
 from minio import Minio
 from minio.error import S3Error
 

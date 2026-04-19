@@ -215,3 +215,4 @@ models/best_model.pth
 main.py
 b.py
 users.json
+logs/

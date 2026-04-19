@@ -1,6 +1,6 @@
 # app/use_cases/secret_use_cases.py
-from typing import Optional, Dict, List
 import logging
+from typing import Dict, List, Optional
 
 from app.domain.interfaces import ISecretRepository
 

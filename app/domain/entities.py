@@ -1,11 +1,11 @@
 """
 Сущности предметной области
 """
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
-from dataclasses import dataclass, field
-import uuid
 
 
 class WagonSide(str, Enum):
@@ -88,7 +88,27 @@ class User:
         """Деактивация пользователя"""
         self.is_active = False
 
+@dataclass
+class DailyReport:
+    """Сущность для ежедневного отчёта (Value Object)"""
 
+    report_date: datetime
+    new_users_count: int
+    total_predictions: int
+    model_exists: bool
+    model_accuracy: Optional[float] = None
+    report_generated_at: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> dict:
+        return {
+            "report_date": self.report_date.isoformat(),
+            "new_users_count": self.new_users_count,
+            "total_predictions": self.total_predictions,
+            "model_exists": self.model_exists,
+            "model_accuracy": self.model_accuracy,
+            "report_generated_at": self.report_generated_at.isoformat(),
+        }
+        
 # ============================================
 # НОВЫЕ СУЩНОСТИ ДЛЯ СЕКРЕТОВ
 # ============================================
