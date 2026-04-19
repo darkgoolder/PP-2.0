@@ -84,7 +84,6 @@ class DailyReportModel(Base):
 
     @staticmethod
     def from_domain(report):
-        from app.domain.entities import DailyReport
 
         return DailyReportModel(
             report_date=report.report_date,

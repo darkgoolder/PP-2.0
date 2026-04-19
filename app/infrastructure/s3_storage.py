@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class S3StorageService:
     """Реализация S3 хранилища через MinIO"""
-    
+
     def __init__(self):
         config = settings.minio_config
         self.client = Minio(
@@ -21,15 +21,15 @@ class S3StorageService:
             access_key=config["access_key"],
             secret_key=config["secret_key"],
             secure=config["secure"],
-            region=config["region"]
+            region=config["region"],
         )
         self._ensure_buckets()
         logger.info(f"S3StorageService инициализирован: {settings.minio_endpoint}")
-    
+
     def _ensure_buckets(self):
         """Создание бакетов если не существуют"""
         buckets = [settings.secrets_bucket]
-        
+
         for bucket in buckets:
             try:
                 if not self.client.bucket_exists(bucket):
@@ -37,7 +37,7 @@ class S3StorageService:
                     logger.info(f"Создан бакет: {bucket}")
             except Exception as e:
                 logger.error(f"Ошибка создания бакета {bucket}: {e}")
-    
+
     async def get_object(self, bucket: str, key: str) -> Optional[bytes]:
         """Получение объекта из S3"""
         try:
@@ -51,7 +51,7 @@ class S3StorageService:
                 return None
             logger.error(f"Ошибка получения объекта {key}: {e}")
             raise
-    
+
     async def put_object(self, bucket: str, key: str, data: bytes) -> bool:
         """Сохранение объекта в S3"""
         try:
@@ -61,14 +61,14 @@ class S3StorageService:
                 object_name=key,
                 data=data_stream,
                 length=len(data),
-                content_type='application/json'
+                content_type="application/json",
             )
             logger.info(f"Сохранён объект: {key}")
             return True
         except S3Error as e:
             logger.error(f"Ошибка сохранения {key}: {e}")
             return False
-    
+
     async def delete_object(self, bucket: str, key: str) -> bool:
         """Удаление объекта из S3"""
         try:
@@ -78,14 +78,12 @@ class S3StorageService:
         except S3Error as e:
             logger.error(f"Ошибка удаления {key}: {e}")
             return False
-    
+
     async def list_objects(self, bucket: str, prefix: str = "") -> List[str]:
         """Список объектов в бакете"""
         try:
             objects = self.client.list_objects(
-                bucket_name=bucket,
-                prefix=prefix,
-                recursive=True
+                bucket_name=bucket, prefix=prefix, recursive=True
             )
             return [obj.object_name for obj in objects]
         except S3Error as e:
