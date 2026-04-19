@@ -10,8 +10,8 @@ tqdm
 Pillow
 pandas
 patool
-# unrar #разблокировать при распаковке файлов формата .rar
-# winrar
+unrar #разблокировать при распаковке файлов формата .rar
+winrar
 fastapi
 uvicorn[standard]
 python-multipart
@@ -25,7 +25,7 @@ pytest
 pytest-asyncio
 httpx
 prometheus-client
-sqlalchemy
+sqlalchemy>=1.4.0
 asyncpg
 alembic
 bcrypt
@@ -35,3 +35,5 @@ minio
 boto3
 cryptography
 pytest-cov
+apache-airflow
+greenlet==3.2.4

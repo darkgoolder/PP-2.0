@@ -4,6 +4,7 @@
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
@@ -89,6 +90,13 @@ class IUserRepository(ABC):
         """Получить всех пользователей"""
         pass
 
+    @abstractmethod
+    async def get_users_by_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[User]:
+        """Получить пользователей, зарегистрированных в указанном диапазоне дат"""
+        pass
+
 
 class IPasswordHasher(ABC):
     """Интерфейс хешера паролей"""
@@ -101,4 +109,122 @@ class IPasswordHasher(ABC):
     @abstractmethod
     def verify(self, password: str, hashed: str) -> bool:
         """Проверить пароль"""
+        pass
+
+
+# ============================================
+# НОВЫЕ ИНТЕРФЕЙСЫ ДЛЯ СЕКРЕТОВ И S3
+# ============================================
+
+class ISecretRepository(ABC):
+    """
+    Интерфейс репозитория секретов
+    Определяет, как use case'ы работают с хранилищем секретов в S3
+    """
+
+    @abstractmethod
+    async def save_secret(self, key: str, value: str, encrypt: bool = True) -> bool:
+        """Сохранить один секрет"""
+        pass
+
+    @abstractmethod
+    async def get_secret(self, key: str) -> Optional[str]:
+        """Получить секрет по ключу (расшифрованный)"""
+        pass
+
+    @abstractmethod
+    async def delete_secret(self, key: str) -> bool:
+        """Удалить секрет"""
+        pass
+
+    @abstractmethod
+    async def list_secret_keys(self) -> List[str]:
+        """Список всех ключей секретов"""
+        pass
+
+    @abstractmethod
+    async def get_all_secrets(self) -> Dict[str, str]:
+        """Получить все секреты (расшифрованные)"""
+        pass
+
+    @abstractmethod
+    async def create_backup(self, name: Optional[str] = None) -> str:
+        """Создать бэкап секретов"""
+        pass
+
+    @abstractmethod
+    async def list_backups(self) -> List[Dict[str, Any]]:
+        """Список бэкапов"""
+        pass
+
+    @abstractmethod
+    async def restore_backup(self, name: str) -> bool:
+        """Восстановить из бэкапа"""
+        pass
+
+    @abstractmethod
+    async def rotate_secret(self, key: str, new_value: str) -> bool:
+        """Ротация секрета (создаёт бэкап перед изменением)"""
+        pass
+
+
+class IEncryptionService(ABC):
+    """Интерфейс сервиса шифрования для секретов"""
+
+    @abstractmethod
+    def encrypt(self, plain_text: str) -> str:
+        """Шифрование текста"""
+        pass
+
+    @abstractmethod
+    def decrypt(self, cipher_text: str) -> str:
+        """Дешифрование текста"""
+        pass
+
+
+class IS3StorageService(ABC):
+    """Интерфейс S3 хранилища (MinIO / AWS S3)"""
+
+    @abstractmethod
+    async def get_object(self, bucket: str, key: str) -> Optional[bytes]:
+        """Получить объект из S3"""
+        pass
+
+    @abstractmethod
+    async def put_object(self, bucket: str, key: str, data: bytes) -> bool:
+        """Сохранить объект в S3"""
+        pass
+
+    @abstractmethod
+    async def delete_object(self, bucket: str, key: str) -> bool:
+        """Удалить объект из S3"""
+        pass
+
+    @abstractmethod
+    async def list_objects(self, bucket: str, prefix: str = "") -> List[str]:
+        """Список объектов в бакете"""
+        pass
+
+    @abstractmethod
+    async def object_exists(self, bucket: str, key: str) -> bool:
+        """Проверка существования объекта"""
+        pass
+
+
+class ISecretHealthCheck(ABC):
+    """Интерфейс health check для сервиса секретов"""
+
+    @abstractmethod
+    async def check_connection(self) -> bool:
+        """Проверка подключения к S3"""
+        pass
+
+    @abstractmethod
+    async def check_encryption(self) -> bool:
+        """Проверка работы шифрования"""
+        pass
+
+    @abstractmethod
+    async def get_status(self) -> Dict[str, Any]:
+        """Получить полный статус сервиса"""
         pass

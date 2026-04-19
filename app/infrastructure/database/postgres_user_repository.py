@@ -2,6 +2,7 @@
 PostgreSQL реализация репозитория пользователей
 """
 
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import select, update
@@ -70,5 +71,17 @@ class PostgresUserRepository(IUserRepository):
 
     async def get_all(self) -> List[User]:
         result = await self.session.execute(select(UserModel))
+        users = result.scalars().all()
+        return [u.to_domain() for u in users]
+
+    async def get_users_by_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[User]:
+        """Получить пользователей, зарегистрированных в указанном диапазоне дат"""
+        result = await self.session.execute(
+            select(UserModel).where(
+                UserModel.created_at >= start_date, UserModel.created_at <= end_date
+            )
+        )
         users = result.scalars().all()
         return [u.to_domain() for u in users]
