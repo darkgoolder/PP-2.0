@@ -132,9 +132,22 @@ jobs:
         run: |
           echo ""
           echo "=========================================="
-          echo "COVERAGE REPORT"
+          echo "UNIT TEST COVERAGE REPORT"
           echo "=========================================="
-          coverage report --skip-covered --skip-empty
+          echo ""
+          
+          # Без --skip-covered — покажет ВСЕ файлы
+          coverage report
+          
+          echo ""
+          echo "=========================================="
+          echo "FILES WITH 100% COVERAGE:"
+          echo "=========================================="
+          coverage report | grep "100%" | grep -v "TOTAL" || echo "None"
+          
+          echo ""
+          echo "=========================================="
+          echo "TOTAL COVERAGE: $(coverage report | grep TOTAL | awk '{print $NF}')"
           echo "=========================================="
       
       - name: Check threshold
