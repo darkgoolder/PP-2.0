@@ -4,6 +4,7 @@
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
@@ -87,6 +88,13 @@ class IUserRepository(ABC):
     @abstractmethod
     async def get_all(self) -> List[User]:
         """Получить всех пользователей"""
+        pass
+
+    @abstractmethod
+    async def get_users_by_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[User]:
+        """Получить пользователей, зарегистрированных в указанном диапазоне дат"""
         pass
 
 

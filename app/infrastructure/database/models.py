@@ -4,7 +4,7 @@ SQLAlchemy модели
 
 import enum
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, String
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, String
 from sqlalchemy.sql import func
 
 from app.domain.entities import User, UserRole
@@ -52,4 +52,44 @@ class UserModel(Base):
             is_active=user.is_active,
             created_at=user.created_at,
             last_login=user.last_login,
+        )
+
+
+class DailyReportModel(Base):
+    """Модель для хранения ежедневных отчётов"""
+
+    __tablename__ = "daily_reports"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    report_date = Column(
+        DateTime(timezone=True), unique=True, nullable=False, index=True
+    )
+    new_users_count = Column(Integer, default=0)
+    total_predictions = Column(Integer, default=0)
+    model_exists = Column(Boolean, default=False)
+    model_accuracy = Column(Float, nullable=True)  # ← Float тоже нужен
+    report_generated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def to_domain(self):
+        from app.domain.entities import DailyReport
+
+        return DailyReport(
+            report_date=self.report_date,
+            new_users_count=self.new_users_count,
+            total_predictions=self.total_predictions,
+            model_exists=self.model_exists,
+            model_accuracy=self.model_accuracy,
+            report_generated_at=self.report_generated_at,
+        )
+
+    @staticmethod
+    def from_domain(report):
+        from app.domain.entities import DailyReport
+
+        return DailyReportModel(
+            report_date=report.report_date,
+            new_users_count=report.new_users_count,
+            total_predictions=report.total_predictions,
+            model_exists=report.model_exists,
+            model_accuracy=report.model_accuracy,
         )
