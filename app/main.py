@@ -84,6 +84,7 @@ async def startup_event():
     logger.info("🔄 Инициализация S3 хранилища...")
     try:
         from app.infrastructure import s3_storage
+
         await s3_storage.list_objects(settings.secrets_bucket)
         logger.info(f"✅ S3 подключен: {settings.minio_endpoint}")
         logger.info(f"📦 Бакет секретов: {settings.secrets_bucket}")
@@ -113,6 +114,7 @@ async def startup_event():
     else:
         try:
             from app.infrastructure.model_repository import get_classifier
+
             classifier = get_classifier()
             logger.info(f"✅ Модель загружена на устройство: {classifier.device}")
         except Exception as e:
@@ -123,6 +125,7 @@ async def startup_event():
 async def shutdown_event():
     """Остановка сервиса"""
     from app.infrastructure.database.connection import get_db_manager
+
     db_manager = get_db_manager()
     if db_manager:
         await db_manager.close()
@@ -132,4 +135,5 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
