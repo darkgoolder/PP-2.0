@@ -1,7 +1,8 @@
 # app/infrastructure/encryption_service.py
-from pathlib import Path
-from cryptography.fernet import Fernet
 import logging
+from pathlib import Path
+
+from cryptography.fernet import Fernet
 
 logger = logging.getLogger(__name__)
 
