@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 class SaveSecretUseCase:
     """Use case: сохранение секрета"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self, key: str, value: str, encrypt: bool = True) -> bool:
         """Выполнение сохранения секрета"""
         logger.info(f"Сохранение секрета: {key}")
@@ -21,10 +21,10 @@ class SaveSecretUseCase:
 
 class GetSecretUseCase:
     """Use case: получение секрета"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self, key: str) -> Optional[str]:
         """Выполнение получения секрета"""
         logger.info(f"Получение секрета: {key}")
@@ -33,10 +33,10 @@ class GetSecretUseCase:
 
 class ListSecretsUseCase:
     """Use case: список ключей секретов"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self) -> List[str]:
         """Выполнение получения списка ключей"""
         return await self.repository.list_secret_keys()
@@ -44,10 +44,10 @@ class ListSecretsUseCase:
 
 class DeleteSecretUseCase:
     """Use case: удаление секрета"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self, key: str) -> bool:
         """Выполнение удаления секрета"""
         logger.info(f"Удаление секрета: {key}")
@@ -56,10 +56,10 @@ class DeleteSecretUseCase:
 
 class CreateBackupUseCase:
     """Use case: создание бэкапа секретов"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self, name: Optional[str] = None) -> str:
         """Выполнение создания бэкапа"""
         logger.info("Создание бэкапа секретов")
@@ -68,10 +68,10 @@ class CreateBackupUseCase:
 
 class ListBackupsUseCase:
     """Use case: список бэкапов"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self) -> List[Dict]:
         """Выполнение получения списка бэкапов"""
         return await self.repository.list_backups()
@@ -79,10 +79,10 @@ class ListBackupsUseCase:
 
 class RestoreBackupUseCase:
     """Use case: восстановление из бэкапа"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self, name: str) -> bool:
         """Выполнение восстановления из бэкапа"""
         logger.info(f"Восстановление из бэкапа: {name}")
@@ -91,10 +91,10 @@ class RestoreBackupUseCase:
 
 class RotateSecretUseCase:
     """Use case: ротация секрета"""
-    
+
     def __init__(self, repository: ISecretRepository):
         self.repository = repository
-    
+
     async def execute(self, key: str, new_value: str) -> bool:
         """Выполнение ротации секрета"""
         logger.info(f"Ротация секрета: {key}")

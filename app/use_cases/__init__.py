@@ -12,7 +12,7 @@ from app.use_cases.secret_use_cases import (
 
 __all__ = [
     "SaveSecretUseCase",
-    "GetSecretUseCase", 
+    "GetSecretUseCase",
     "ListSecretsUseCase",
     "DeleteSecretUseCase",
     "CreateBackupUseCase",
