@@ -372,7 +372,7 @@ Variables:
 
 ```python```
   
-# train.py - обучение модели
+train.py - обучение модели
 ```from wagon_classifier import train_simple_model```
   
 model, history = train_simple_model()
@@ -387,7 +387,7 @@ inference.py - использование модели
   
 ```result = predict_single_image()```
 
-# Результат: (predicted_class, confidence)
+Результат: (predicted_class, confidence)
   
 Пример интеграции
 ```
@@ -398,7 +398,7 @@ from PIL import Image
 import io
 ```
   
-# Классификация через API
+Классификация через API
 ```
    def classify_wagon(image_path):
     with open(image_path, 'rb') as f:
@@ -416,7 +416,7 @@ import io
         return None
 ```
   
-# Использование
+Использование
 
 ```result = classify_wagon('wagon_photo.jpg')```
   
@@ -526,3 +526,400 @@ python train_model.py
 uvicorn app.main:app --reload
 ```
   
+🚂 Wagon Classification API
+
+API для классификации вагонов на изображениях.
+
+📋 Содержание
+
+- [Требования](#-требования)
+- [Установка](#-установка)
+- [Настройка](#-настройка)
+- [Запуск через Uvicorn](#-запуск-через-uvicorn)
+- [Деплой на сервер](#-деплой-на-сервер)
+- [Проверка работы](#-проверка-работы)
+- [Устранение проблем](#-устранение-проблем)
+
+📦 Требования
+
+- **Python** 3.10 - 3.12
+- **pip** (менеджер пакетов)
+- **Docker** (опционально, для MinIO)
+
+## 🚀 Установка
+
+### 1. Клонирование репозитория
+
+```
+bash
+git clone https://github.com/your-username/wagon-classification.git
+cd wagon-classification
+```
+
+2. Создание виртуального окружения
+
+Windows:
+```
+powershell
+python -m venv venv
+venv\Scripts\activate
+```
+
+Linux/macOS:
+```
+bash
+python3 -m venv venv
+source venv/bin/activate
+```
+  
+3. Установка зависимостей
+```
+bash
+pip install -r requirements.txt
+```
+  
+🔧 Настройка
+1. Создайте файл .env
+
+Скопируйте шаблон
+```
+copy .env.example .env        # Windows
+```
+  
+```
+cp .env.example .env          # Linux/macOS
+```
+
+2. Отредактируйте .env
+Откройте файл и измените следующие параметры:
+```
+env
+SECRET_KEY=сгенерируйте-уникальный-ключ
+ADMIN_API_TOKEN=сгенерируйте-токен
+```
+  
+Как сгенерировать ключ:
+```
+bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+  
+3. Запустите MinIO (для хранения секретов)
+```
+bash
+docker run -d --name wagon-minio -p 9000:9000 -p 9001:9001 \
+  -e "MINIO_ROOT_USER=minioadmin" -e "MINIO_ROOT_PASSWORD=minioadmin123" \
+  -v minio_data:/data minio/minio server /data --console-address ":9001"
+```
+
+4. Создайте бакет в MinIO
+```
+Откройте браузер: http://localhost:9001
+
+Логин: minioadmin, пароль: minioadmin123
+
+Нажмите "Create Bucket"
+
+Введите имя: wagon-secrets
+
+Нажмите "Create"
+```
+
+🚀 Запуск через Uvicorn
+Базовый запуск (для разработки)
+```
+bash
+uvicorn app.main:app --reload
+```
+  
+Запуск с доступом из сети
+```
+bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+  
+Запуск с несколькими воркерами (для production)
+```
+bash
+uvicorn app.main:app --workers 4 --host 0.0.0.0 --port 8000
+```
+  
+Запуск с логами в файл
+```
+bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info > logs/app.log 2>&1
+```
+  
+📊 Параметры запуска
+Параметр	Описание
+```
+--reload	Авто-перезагрузка при изменениях (только для разработки)
+--host 0.0.0.0	Доступ из любой сети
+--host 127.0.0.1	Доступ только с локального компьютера
+--port 8000	Порт для запуска
+--workers 4	Количество воркеров
+```
+  
+🐧 Запуск с Gunicorn (Linux)
+Для production на Linux:
+
+bash
+
+Установка Gunicorn
+```
+pip install gunicorn
+```
+  
+Запуск
+```
+gunicorn app.main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000
+```
+  
+🚢 Деплой на сервер
+1. Подготовка сервера (Ubuntu)
+
+
+Обновление системы
+```
+sudo apt update && sudo apt upgrade -y
+```
+  
+Установка Docker
+```
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+Установка Python
+```
+sudo apt install -y python3 python3-pip python3-venv
+```
+  
+2. Копирование проекта на сервер
+
+Через Git
+```
+git clone https://github.com/your-username/wagon-classification.git
+cd wagon-classification
+```
+  
+Или через SCP
+```
+scp -r ./wagon-classification user@server:/opt/
+```
+3. Настройка на сервере
+
+```
+Создание виртуального окружения
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Установка зависимостей
+```
+pip install -r requirements.txt
+```
+
+Настройка .env
+```
+cp .env.example .env
+nano .env  # Заполните реальными значениями
+```
+
+4. Запуск MinIO на сервере
+```
+bash
+docker run -d --name wagon-minio -p 9000:9000 -p 9001:9001 \
+  -e "MINIO_ROOT_USER=minioadmin" -e "MINIO_ROOT_PASSWORD=minioadmin123" \
+  -v minio_data:/data minio/minio server /data --console-address ":9001"
+```
+
+5. Запуск приложения
+
+Активация окружения
+```
+source venv/bin/activate
+```
+
+# Запуск
+```
+gunicorn app.main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --daemon  # Запуск в фоне
+```
+
+6. Настройка автозапуска (systemd)
+Создайте файл /etc/systemd/system/wagon-api.service:
+```
+ini
+[Unit]
+Description=Wagon Classification API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/wagon-classification
+Environment="PATH=/opt/wagon-classification/venv/bin"
+ExecStart=/opt/wagon-classification/venv/bin/gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+Restart=always
+```
+  
+[Install]
+WantedBy=multi-user.target
+Запуск службы:
+```
+bash
+sudo systemctl daemon-reload
+sudo systemctl start wagon-api
+sudo systemctl enable wagon-api
+```
+  
+✅ Проверка работы
+1. Откройте в браузере
+Swagger документация: http://localhost:8000/docs
+
+Health check: http://localhost:8000/health
+
+MinIO консоль: http://localhost:9001
+
+2. Проверьте через браузер
+Перейдите по адресу http://localhost:8000/health
+
+Вы должны увидеть:
+```
+json
+{
+  "status": "healthy",
+  "environment": "development"
+}
+```
+  
+3. Проверка секретов через Swagger
+Откройте http://localhost:8000/docs
+
+Найдите раздел Secrets
+
+Выполните запрос GET /api/v1/secrets/health
+
+🛑 Остановка сервера
+Если запущен вручную:
+Нажмите Ctrl + C
+
+Если запущен как служба (Linux):
+```
+bash
+sudo systemctl stop wagon-api
+```
+  
+Остановка MinIO:
+```
+bash
+docker stop wagon-minio
+```
+  
+🐛 Устранение проблем
+Ошибка: uvicorn not found
+Решение: Активируйте виртуальное окружение
+```
+bash
+venv\Scripts\activate        # Windows
+source venv/bin/activate      # Linux
+```
+  
+Ошибка: Port already in use
+Решение: Порт 8000 уже занят
+
+bash
+Windows - найти и завершить процесс
+
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+Linux
+kill -9 $(lsof -t -i:8000)
+Ошибка: ModuleNotFoundError
+Решение: Переустановите зависимости
+```
+bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+MinIO не запускается
+Решение: Проверьте что Docker работает
+
+bash
+# Запуск Docker Desktop (Windows)
+# Или через командную строку
+docker ps
+
+📁 Структура проекта
+text
+pp-2.0/
+├── app/
+│   ├── config.py              # Настройки
+│   ├── main.py                # Точка входа
+│   ├── domain/                # Модели данных
+│   ├── infrastructure/        # Подключения
+│   ├── presentation/          # API
+│   └── use_cases/             # Логика
+├── scripts/                   # Скрипты
+├── tests/                     # Тесты
+├── models/                    # ML модели
+├── logs/                      # Логи
+├── .env                       # Настройки
+├── .env.example               # Шаблон настроек
+├── requirements.txt           # Зависимости
+└── README.md                  # Документация
+📝 Скрипт для быстрого запуска (Windows)
+Создайте файл start.bat:
+```
+batch
+@echo off
+call venv\Scripts\activate
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+pause
+```
+
+📝 Скрипт для быстрого запуска (Linux)
+Создайте файл start.sh:
+```
+bash
+#!/bin/bash
+source venv/bin/activate
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+Сделайте его исполняемым:
+```
+bash
+chmod +x start.sh
+./start.sh
+```
+
+📌 Быстрые команды
+
+=== УСТАНОВКА ===
+```
+git clone <repo-url>
+cd wagon-classification
+python -m venv venv
+venv\Scripts\activate          # Windows
+source venv/bin/activate        # Linux
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+=== ЗАПУСК ===
+```
+uvicorn app.main:app --reload   # Режим разработки
+uvicorn app.main:app --host 0.0.0.0 --port 8000  # Production
+```
+
+=== ОСТАНОВКА ===
+Ctrl + C
