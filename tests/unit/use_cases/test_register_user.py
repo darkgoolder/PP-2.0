@@ -24,7 +24,7 @@ class TestRegisterUserUseCase:
         repo = Mock()
         repo.exists_by_username = AsyncMock(return_value=False)
         repo.exists_by_email = AsyncMock(return_value=False)
-        repo.create = AsyncMock(return_value=1)
+        repo.save = AsyncMock(return_value=None)  # ← ИСПРАВЛЕНО: save вместо create
         return repo
     
     @pytest.fixture
@@ -60,8 +60,8 @@ class TestRegisterUserUseCase:
         assert result["is_active"] is True
     
     @pytest.mark.asyncio
-    async def test_execute_withValidData_callsRepositoryCreateOnce(self, register_use_case, mock_user_repository):
-        """Регистрация с корректными данными — вызывает метод create репозитория ровно один раз"""
+    async def test_execute_withValidData_callsRepositorySaveOnce(self, register_use_case, mock_user_repository):
+        """Регистрация с корректными данными — вызывает метод save репозитория ровно один раз"""
         # Arrange
         username = "newuser"
         email = "new@example.com"
@@ -71,7 +71,7 @@ class TestRegisterUserUseCase:
         await register_use_case.execute(username, email, password)
         
         # Assert
-        mock_user_repository.create.assert_called_once()
+        mock_user_repository.save.assert_called_once()  # ← ИСПРАВЛЕНО: save вместо create
     
     # === Сценарии с ошибками валидации ===
     
@@ -182,10 +182,10 @@ class TestRegisterUserUseCase:
         assert "already registered" in str(exc_info.value)
     
     @pytest.mark.asyncio
-    async def test_execute_whenRepositoryCreateFails_propagatesException(self, mock_user_repository, register_use_case):
+    async def test_execute_whenRepositorySaveFails_propagatesException(self, mock_user_repository, register_use_case):
         """Регистрация при ошибке репозитория — пробрасывает исключение"""
         # Arrange
-        mock_user_repository.create = AsyncMock(side_effect=Exception("DB error"))
+        mock_user_repository.save = AsyncMock(side_effect=Exception("DB error"))
         
         # Act & Assert
         with pytest.raises(Exception) as exc_info:
