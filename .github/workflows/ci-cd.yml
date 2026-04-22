@@ -54,7 +54,7 @@ jobs:
         continue-on-error: true
       
       - name: Run mypy (проверка типов)
-        run: mypy app/ --ignore-missing-imports --no-strict-optional --python-version 3.9
+        run: mypy -p app --ignore-missing-imports --no-strict-optional --python-version 3.9
         continue-on-error: true
 
   # ============================================
@@ -103,9 +103,6 @@ jobs:
       - name: Create directories for tests
         run: mkdir -p models uploads
       
-      - name: Create dummy model for tests
-        run: python scripts/create_dummy_model.py
-      
       - name: Wait for PostgreSQL to be ready
         run: |
           for i in {1..30}; do
@@ -136,7 +133,6 @@ jobs:
           echo "=========================================="
           echo ""
           
-          # Без --skip-covered — покажет ВСЕ файлы
           coverage report
           
           echo ""
@@ -166,8 +162,7 @@ jobs:
           path: coverage.xml
         if: always()
 
-
-    # ============================================
+  # ============================================
   # JOB 3: API Endpoint Tests
   # ============================================
   api-test:
@@ -210,26 +205,32 @@ jobs:
       - name: Create directories
         run: mkdir -p models uploads
       
-      - name: Create dummy model
+      - name: Check if model exists
         run: |
-          python -c "
-          import torch
-          import torch.nn as nn
-          from torchvision import models
+          if [ -f "models/best_model.pth" ]; then
+            echo "✅ Model file exists"
+            ls -la models/
+          else
+            echo "⚠️ Model file not found, creating dummy model"
+            python -c "
+            import torch
+            import torch.nn as nn
+            from torchvision import models
 
-          model = models.efficientnet_b2(weights=None)
-          num_classes = 3
-          in_features = model.classifier[1].in_features
-          model.classifier = nn.Sequential(
-              nn.Dropout(p=0.3),
-              nn.Linear(in_features, num_classes)
-          )
-          torch.save({
-              'model_state_dict': model.state_dict(),
-              'class_names': ['pered', 'zad', 'none']
-          }, 'models/best_model.pth')
-          print('✅ Dummy model created')
-          "
+            model = models.efficientnet_b2(weights=None)
+            num_classes = 3
+            in_features = model.classifier[1].in_features
+            model.classifier = nn.Sequential(
+                nn.Dropout(p=0.3),
+                nn.Linear(in_features, num_classes)
+            )
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'class_names': ['pered', 'zad', 'none']
+            }, 'models/best_model.pth')
+            print('✅ Dummy model created')
+            "
+          fi
       
       - name: Start API server
         run: |
@@ -296,10 +297,16 @@ jobs:
           uv pip install --system pytest pytest-asyncio
           uv pip install --system -r requirements.txt
       
-      - name: Create dummy model
+      - name: Create directories
+        run: mkdir -p models uploads
+      
+      - name: Check if model exists
         run: |
-          mkdir -p models
-          python scripts/create_dummy_model.py
+          if [ -f "models/best_model.pth" ]; then
+            echo "✅ Model file exists"
+          else
+            echo "⚠️ Model file not found, tests will use mocks"
+          fi
       
       - name: Run basic tests (without DB)
         run: pytest tests/test_dummy.py tests/test_model_compatibility.py -v
@@ -398,25 +405,4 @@ jobs:
                 title: `Pipeline ${conclusion}`,
                 summary: `Lint: ${{ needs.lint.result }}\nTest: ${{ needs.test.result }}\nTest Light: ${{ needs.test-light.result }}\nAPI Test: ${{ needs.api-test.result }}\nDocker: ${{ needs.docker-build.result }}`
               }
-            });
-      
-      # - name: Send to Telegram (опционально)
-      #   if: secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != ''
-      #   uses: appleboy/telegram-action@master
-      #   with:
-      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
-      #     token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      #     message: |
-      #       🚀 CI/CD Pipeline
-            
-      #       Repository: ${{ github.repository }}
-      #       Branch: ${{ github.ref_name }}
-      #       Status: ${{ steps.status.outputs.status }}
-            
-      #       Lint: ${{ needs.lint.result }}
-      #       Tests: ${{ needs.test.result }}
-      #       API Tests: ${{ needs.api-test.result }}
-      #       Docker: ${{ needs.docker-build.result }}
-            
-      #       Commit: ${{ github.event.head_commit.message }}
-      #       Author: ${{ github.event.head_commit.author.name }}
+            })
