@@ -24,12 +24,12 @@ class TestWagonClassifier:
         """Фикстура для создания классификатора"""
         try:
             # Проверяем, существует ли файл модели
-            if not settings.MODEL_PATH.exists():
-                pytest.skip(f"Model file not found: {settings.MODEL_PATH}")
+            if not settings.model_path.exists():
+                pytest.skip(f"Model file not found: {settings.model_path}")
                 return None
             
             return WagonClassifier(
-                model_path=str(settings.MODEL_PATH),
+                model_path=str(settings.model_path),
                 class_names=settings.CLASS_NAMES
             )
         except FileNotFoundError:
@@ -118,7 +118,7 @@ class TestModelIntegrity:
 
     def test_model_file_exists(self):
         """Проверка существования файла модели"""
-        model_path = settings.MODEL_PATH
+        model_path = settings.model_path
 
         if not model_path.exists():
             pytest.skip(f"Model not found: {model_path}")
@@ -129,7 +129,7 @@ class TestModelIntegrity:
 
     def test_model_loadable(self):
         """Проверка загрузки модели PyTorch"""
-        model_path = settings.MODEL_PATH
+        model_path = settings.model_path
 
         if not model_path.exists():
             pytest.skip(f"Model not found: {model_path}")

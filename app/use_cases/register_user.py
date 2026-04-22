@@ -57,12 +57,8 @@ class RegisterUserUseCase:
             created_at=datetime.now(),
         )
 
-        # Сохранение
-        await self.user_repository.create(
-            username=user.username,
-            email=user.email,
-            hashed_password=user.hashed_password,
-        )
+        # Сохранение — используем save(), а не create()
+        await self.user_repository.save(user)
 
         logger.info(f"User registered: {username} ({email})")
 

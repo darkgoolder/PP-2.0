@@ -5,8 +5,8 @@
 import logging
 import os
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,12 @@ class DatabaseManager:
     async def initialize(self):
         self.engine = create_async_engine(
             self.database_url,
-            echo=True,  # Включите echo для отладки SQL
+            echo=False,
             pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
             pool_pre_ping=True,
         )
 
-        self.async_session_maker = async_sessionmaker(
+        self.async_session_maker = sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -41,7 +41,6 @@ class DatabaseManager:
         async with self.async_session_maker() as session:
             try:
                 yield session
-                # КОММИТ ДОЛЖЕН БЫТЬ ЗДЕСЬ, ПОСЛЕ YIELD
                 await session.commit()
                 print("=== COMMIT SUCCESSFUL ===")
             except Exception as e:
@@ -51,9 +50,9 @@ class DatabaseManager:
             finally:
                 await session.close()
 
-        async def close(self):
-            if self.engine:
-                await self.engine.dispose()
+    async def close(self):
+        if self.engine:
+            await self.engine.dispose()
 
 
 db_manager = None

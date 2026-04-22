@@ -1,3 +1,91 @@
+# version: '3.8'
+
+# services:
+#   # PostgreSQL база данных
+#   db:
+#     image: postgres:15-alpine
+#     container_name: wagon_db
+#     environment:
+#       POSTGRES_USER: wagon_user
+#       POSTGRES_PASSWORD: wagon_pass
+#       POSTGRES_DB: wagon_db
+#     ports:
+#       - "5432:5432"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U wagon_user -d wagon_db"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#     restart: unless-stopped
+#     networks:
+#       - wagon_network
+
+#   # FastAPI приложение
+#   api:
+#     build: .
+#     container_name: wagon_api
+#     ports:
+#       - "8000:8000"
+#     volumes:
+#       - ./models:/app/models
+#       - ./uploads:/app/uploads
+#       - ./app:/app/app
+#       - ./logs:/app/logs
+#       - ./config.py:/app/config.py
+#     environment:
+#       - MODEL_PATH=/app/models/best_model.pth
+#       - LOG_LEVEL=INFO
+#       - DATABASE_URL=postgresql+asyncpg://wagon_user:wagon_pass@db:5432/wagon_db
+#       - DATABASE_URL_SYNC=postgresql://wagon_user:wagon_pass@db:5432/wagon_db
+#     depends_on:
+#       db:
+#         condition: service_healthy
+#     restart: unless-stopped
+#     healthcheck:
+#       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 3
+#       start_period: 40s
+#     networks:
+#       - wagon_network
+
+#     # MinIO S3 хранилище
+#   minio:
+#     image: minio/minio:latest
+#     container_name: wagon_minio
+#     command: server /data --console-address ":9001"
+#     environment:
+#       MINIO_ROOT_USER: minioadmin
+#       MINIO_ROOT_PASSWORD: minioadmin
+#       MINIO_ACCESS_KEY: minioadmin
+#       MINIO_SECRET_KEY: minioadmin
+#     ports:
+#       - "9000:9000"
+#       - "9001:9001"
+#     volumes:
+#       - minio_data:/data
+#     healthcheck:
+#       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+#       interval: 30s
+#       timeout: 20s
+#       retries: 3
+#     networks:
+#       - wagon_network
+
+# volumes:
+#   postgres_data:
+#   minio_data:
+
+# networks:
+#   wagon_network:
+#     driver: bridge
+
+
+
+
 version: '3.8'
 
 services:
@@ -22,6 +110,96 @@ services:
     networks:
       - wagon_network
 
+  # MinIO S3 хранилище
+  minio:
+    image: minio/minio:latest
+    container_name: wagon_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - wagon_network
+
+  # ============================================
+  # PostgreSQL для Airflow (НОВЫЙ)
+  # ============================================
+  airflow_db:
+    image: postgres:15-alpine
+    container_name: wagon_airflow_db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wagon_network
+
+  # ============================================
+  # Airflow Webserver (НОВЫЙ)
+  # ============================================
+  airflow-webserver:
+    image: apache/airflow:2.8.0
+    container_name: wagon_airflow_webserver
+    depends_on:
+      airflow_db:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_db:5432/airflow
+      AIRFLOW__WEBSERVER__RBAC: 'True'
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      _PIP_ADDITIONAL_REQUIREMENTS: pydantic-settings sqlalchemy asyncpg psycopg2-binary bcrypt torch torchvision
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./app:/opt/airflow/app
+    ports:
+      - "8080:8080"
+    command: bash -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com && airflow webserver"
+    networks:
+      - wagon_network
+
+  # ============================================
+  # Airflow Scheduler (НОВЫЙ)
+  # ============================================
+  airflow-scheduler:
+    image: apache/airflow:2.8.0
+    container_name: wagon_airflow_scheduler
+    depends_on:
+      airflow_db:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_db:5432/airflow
+      _PIP_ADDITIONAL_REQUIREMENTS: pydantic-settings sqlalchemy asyncpg psycopg2-binary bcrypt torch torchvision
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./app:/opt/airflow/app
+    command: scheduler
+    networks:
+      - wagon_network
+
   # FastAPI приложение
   api:
     build: .
@@ -33,6 +211,7 @@ services:
       - ./uploads:/app/uploads
       - ./app:/app/app
       - ./logs:/app/logs
+      - ./config.py:/app/config.py
     environment:
       - MODEL_PATH=/app/models/best_model.pth
       - LOG_LEVEL=INFO
@@ -40,6 +219,8 @@ services:
       - DATABASE_URL_SYNC=postgresql://wagon_user:wagon_pass@db:5432/wagon_db
     depends_on:
       db:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -53,6 +234,8 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
+  airflow_postgres_data:  # НОВЫЙ
 
 networks:
   wagon_network:

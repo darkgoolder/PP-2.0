@@ -24,6 +24,7 @@ from app.presentation.schemas import (
     RegisterResponse,
 )
 from app.use_cases.login_user import LoginUserUseCase
+from app.use_cases.register_user import RegisterUserUseCase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -43,14 +44,14 @@ async def health_check():
             status="healthy",
             model_loaded=True,
             device=classifier.device,
-            version=settings.VERSION,
+            version=settings.version,
         )
     except Exception:
         return HealthResponse(
             status="healthy",
             model_loaded=False,
             device="cpu",
-            version=settings.VERSION,
+            version=settings.version,
         )
 
 
@@ -149,63 +150,93 @@ async def predict_batch(
         )
 
 
+# @router.post("/register", response_model=RegisterResponse, tags=["Users"])
+# async def register_user(request: RegisterRequest):
+#     """Регистрация нового пользователя - УПРОЩЁННАЯ ВЕРСИЯ ДЛЯ ТЕСТА"""
+
+#     db_manager = get_db_manager()
+#     if not db_manager:
+#         raise HTTPException(status_code=503, detail="Database not available")
+
+#     session = None
+#     try:
+#         async for sess in db_manager.get_session():
+#             session = sess
+#             break
+
+#         print("=== SESSION ACQUIRED ===")
+
+#         import uuid
+#         from datetime import datetime
+
+#         from app.infrastructure.database.models import UserModel
+
+#         new_user = UserModel(
+#             id=str(uuid.uuid4()),
+#             username=request.username,
+#             email=request.email,
+#             hashed_password="test_hash",
+#             created_at=datetime.now(),
+#         )
+
+#         session.add(new_user)
+#         print(f"=== ADDED TO SESSION: {new_user.username} ===")
+
+#         await session.flush()
+#         print("=== FLUSH DONE ===")
+
+#         # ЯВНЫЙ КОММИТ
+#         await session.commit()
+#         print("=== COMMIT DONE ===")
+
+#         return RegisterResponse(
+#             status="success",
+#             user={
+#                 "id": str(new_user.id),
+#                 "username": new_user.username,
+#                 "email": new_user.email,
+#                 "role": "user",
+#                 "is_active": True,
+#                 "created_at": new_user.created_at.isoformat(),
+#                 "last_login": None,
+#             },
+#             message="User registered successfully",
+#         )
+#     except Exception as e:
+#         if session:
+#             await session.rollback()
+#         print(f"ERROR: {e}")
+#         raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/register", response_model=RegisterResponse, tags=["Users"])
 async def register_user(request: RegisterRequest):
-    """Регистрация нового пользователя - УПРОЩЁННАЯ ВЕРСИЯ ДЛЯ ТЕСТА"""
-
+    """Регистрация нового пользователя"""
     db_manager = get_db_manager()
     if not db_manager:
         raise HTTPException(status_code=503, detail="Database not available")
 
-    session = None
     try:
-        async for sess in db_manager.get_session():
-            session = sess
-            break
+        async with db_manager.async_session_maker() as session:
+            async with session.begin():
+                user_repository = PostgresUserRepository(session)
+                password_hasher = BcryptPasswordHasher()
+                use_case = RegisterUserUseCase(user_repository, password_hasher)
 
-        print("=== SESSION ACQUIRED ===")
+                user = await use_case.execute(
+                    username=request.username,
+                    email=request.email,
+                    password=request.password,
+                )
 
-        import uuid
-        from datetime import datetime
-
-        from app.infrastructure.database.models import UserModel
-
-        new_user = UserModel(
-            id=str(uuid.uuid4()),
-            username=request.username,
-            email=request.email,
-            hashed_password="test_hash",
-            created_at=datetime.now(),
-        )
-
-        session.add(new_user)
-        print(f"=== ADDED TO SESSION: {new_user.username} ===")
-
-        await session.flush()
-        print("=== FLUSH DONE ===")
-
-        # ЯВНЫЙ КОММИТ
-        await session.commit()
-        print("=== COMMIT DONE ===")
-
-        return RegisterResponse(
-            status="success",
-            user={
-                "id": str(new_user.id),
-                "username": new_user.username,
-                "email": new_user.email,
-                "role": "user",
-                "is_active": True,
-                "created_at": new_user.created_at.isoformat(),
-                "last_login": None,
-            },
-            message="User registered successfully",
-        )
+                return RegisterResponse(
+                    status="success", user=user, message="User registered successfully"
+                )
     except Exception as e:
-        if session:
-            await session.rollback()
-        print(f"ERROR: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(
+            status_code=400, detail={"code": "REGISTRATION_ERROR", "message": str(e)}
+        )
 
 
 @router.post("/login", response_model=LoginResponse, tags=["Users"])
@@ -213,20 +244,20 @@ async def login_user(request: LoginRequest):
     """Аутентификация пользователя"""
     db_manager = get_db_manager()
     if not db_manager:
-        raise HTTPException(
-            status_code=503, detail="Database not available. Please check DATABASE_URL."
-        )
+        raise HTTPException(status_code=503, detail="Database not available")
 
     try:
-        async for session in db_manager.get_session():
-            user_repository = PostgresUserRepository(session)
-            password_hasher = BcryptPasswordHasher()
-            use_case = LoginUserUseCase(user_repository, password_hasher)
+        async with db_manager.async_session_maker() as session:
+            async with session.begin():
+                user_repository = PostgresUserRepository(session)
+                password_hasher = BcryptPasswordHasher()
+                use_case = LoginUserUseCase(user_repository, password_hasher)
 
-            user = await use_case.execute(
-                username=request.username, password=request.password
-            )
-            return LoginResponse(status="success", user=user)
+                user = await use_case.execute(
+                    username=request.username, password=request.password
+                )
+
+                return LoginResponse(status="success", user=user)
     except Exception as e:
         logger.error(f"Login error: {e}")
         raise HTTPException(

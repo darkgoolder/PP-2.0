@@ -54,12 +54,12 @@ class GenerateDailyReportUseCase:
 
         from app.config import settings
 
-        model_exists = os.path.exists(settings.MODEL_PATH)
+        model_exists = os.path.exists(settings.model_path)
         model_accuracy = None
 
         if model_exists:
             try:
-                checkpoint = torch.load(settings.MODEL_PATH, map_location="cpu")
+                checkpoint = torch.load(settings.model_path, map_location="cpu")
                 model_accuracy = checkpoint.get("val_acc", None)
                 logger.info(f"Model loaded. Accuracy: {model_accuracy}")
             except Exception as e:
