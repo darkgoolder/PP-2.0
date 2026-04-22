@@ -106,14 +106,14 @@ class TestConfigValidation:
     def test_settings_loaded(self):
         """Проверка загрузки настроек"""
         assert settings is not None
-        assert settings.project_name == "Wagon Classifier API"
-        assert settings.VERSION == "2.0.0"
+        assert settings.project_name == "Wagon Classification API"
+        assert settings.version == "2.0.0"
 
 
     def test_paths_exist(self):
         """Проверка существования необходимых директорий"""
         assert settings.model_path.parent.exists() or not settings.model_path.parent.exists()
-        assert settings.MODEL_PATH.suffix == ".pth"
+        assert settings.model_path.suffix == ".pth"
         
 
 # class TestUserAPI:
