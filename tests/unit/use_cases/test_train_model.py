@@ -74,7 +74,7 @@ class TestTrainModelUseCase:
         config = TrainingConfig()
         
         assert config.batch_size == 32
-        assert config.num_epochs == 15
+        assert config.num_epochs == 20
         assert config.learning_rate == 1e-4
         assert config.val_split == 0.2
     

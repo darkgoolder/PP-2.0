@@ -25,7 +25,7 @@ pytest
 pytest-asyncio
 httpx
 prometheus-client
-sqlalchemy>=1.4.0
+sqlalchemy>=1.4.49,<2.0
 asyncpg
 alembic
 bcrypt
