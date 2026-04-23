@@ -233,18 +233,18 @@ class TestWagonClassifierEdgeCases:
         assert isinstance(result, tuple)
         assert len(result) == 3
     
-    def test_get_classifier_returns_singleton(self):
-        """get_classifier — возвращает один и тот же экземпляр (синглтон)"""
-        from app.infrastructure.model_repository import get_classifier, _classifier_instance
+    # def test_get_classifier_returns_singleton(self):
+    #     """get_classifier — возвращает один и тот же экземпляр (синглтон)"""
+    #     from app.infrastructure.model_repository import get_classifier, _classifier_instance
         
-        # Сбрасываем синглтон для теста
-        import app.infrastructure.model_repository as repo
-        repo._classifier_instance = None
+    #     # Сбрасываем синглтон для теста
+    #     import app.infrastructure.model_repository as repo
+    #     repo._classifier_instance = None
         
-        classifier1 = get_classifier()
-        classifier2 = get_classifier()
+    #     classifier1 = get_classifier()
+    #     classifier2 = get_classifier()
         
-        assert classifier1 is classifier2
+    #     assert classifier1 is classifier2
     
     def test_load_model_handles_checkpoint_without_state_dict(self, tmp_path):
         """Загрузка модели — обрабатывает чекпоинт без ключа model_state_dict"""
@@ -402,18 +402,24 @@ class TestWagonClassifierExceptionHandling:
             # Доступ к model вызывает _load_model
             _ = classifier.model
     
-    def test_get_classifier_creates_singleton(self):
-        """get_classifier — создаёт синглтон и не пересоздаёт его"""
-        from app.infrastructure.model_repository import get_classifier
+    def test_get_classifier_returns_singleton(self):
+        """get_classifier — возвращает синглтон (с моком)"""
+        from app.infrastructure.model_repository import get_classifier, _classifier_instance
+        from unittest.mock import patch
         
         # Сбрасываем синглтон
         import app.infrastructure.model_repository as repo
         repo._classifier_instance = None
         
-        classifier1 = get_classifier()
-        classifier2 = get_classifier()
-        
-        assert classifier1 is classifier2
+        # Мокаем создание классификатора, чтобы не загружать реальную модель
+        with patch('app.infrastructure.model_repository.WagonClassifier') as MockClassifier:
+            MockClassifier.return_value = "mock_classifier"
+            
+            classifier1 = get_classifier()
+            classifier2 = get_classifier()
+            
+            # Проверяем, что синглтон работает
+            assert classifier1 is classifier2
     
     def test_predict_batch_processes_multiple_images(self, tmp_path):
         """predict_batch — обрабатывает несколько изображений"""
