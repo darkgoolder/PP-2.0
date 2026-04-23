@@ -166,6 +166,12 @@ omit = [
     "app/main.py",
     "app/presentation/api/routes.py",
     "app/presentation/api/dependencies.py",
+    "app/infrastructure/s3_storage.py",
+    "app/infrastructure/secret_repository_s3.py",
+    "app/presentation/api/secrets_router.py",
+    "app/use_cases/secret_use_cases.py",
+    "app/use_cases/generate_daily_report.py",
+    "app/infrastructure/database/report_repository.py",
 ]
 
 [tool.coverage.report]

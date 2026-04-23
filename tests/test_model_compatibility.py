@@ -15,14 +15,14 @@ def test_dummy_model_compatibility():
     """Проверяет, что фиктивная модель совместима с загрузчиком"""
     
     # Сначала создаем фиктивную модель, если её нет
-    if not settings.MODEL_PATH.exists():
+    if not settings.model_path.exists():
         try:
             # Создаем фиктивную модель
             import torch
             import torch.nn as nn
             from torchvision import models
             
-            os.makedirs(settings.MODEL_PATH.parent, exist_ok=True)
+            os.makedirs(settings.model_path.parent, exist_ok=True)
             
             model = models.efficientnet_b2(weights=None)
             in_features = model.classifier[1].in_features
@@ -34,9 +34,9 @@ def test_dummy_model_compatibility():
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "class_names": settings.CLASS_NAMES,
-            }, settings.MODEL_PATH)
+            }, settings.model_path)
             
-            print(f"✅ Created dummy model at {settings.MODEL_PATH}")
+            print(f"✅ Created dummy model at {settings.model_path}")
         except Exception as e:
             pytest.skip(f"Cannot create dummy model: {e}")
     
@@ -44,7 +44,7 @@ def test_dummy_model_compatibility():
         from PIL import Image
         
         classifier = WagonClassifier(
-            model_path=str(settings.MODEL_PATH),
+            model_path=str(settings.model_path),
             class_names=settings.CLASS_NAMES
         )
 
