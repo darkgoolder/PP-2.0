@@ -277,7 +277,7 @@ jobs:
   #       run: kill $(lsof -t -i:8000) || true
 
 
-    # ============================================
+  # ============================================
   # JOB 3: API Endpoint Tests
   # ============================================
   api-test:
@@ -328,23 +328,23 @@ jobs:
           else
             echo "⚠️ Model file not found, creating dummy model"
             python -c "
-import torch
-import torch.nn as nn
-from torchvision import models
+            import torch
+            import torch.nn as nn
+            from torchvision import models
 
-model = models.efficientnet_b2(weights=None)
-num_classes = 3
-in_features = model.classifier[1].in_features
-model.classifier = nn.Sequential(
-    nn.Dropout(p=0.3),
-    nn.Linear(in_features, num_classes)
-)
-torch.save({
-    'model_state_dict': model.state_dict(),
-    'class_names': ['pered', 'zad', 'none']
-}, 'models/best_model.pth')
-print('✅ Dummy model created')
-"
+            model = models.efficientnet_b2(weights=None)
+            num_classes = 3
+            in_features = model.classifier[1].in_features
+            model.classifier = nn.Sequential(
+                nn.Dropout(p=0.3),
+                nn.Linear(in_features, num_classes)
+            )
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'class_names': ['pered', 'zad', 'none']
+            }, 'models/best_model.pth')
+            print('✅ Dummy model created')
+            "
           fi
       
       - name: Start API server
