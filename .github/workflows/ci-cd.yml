@@ -320,37 +320,16 @@ jobs:
       - name: Create directories
         run: mkdir -p models uploads
       
-      - name: Check if model exists
+      - name: Create dummy model
         run: |
-          if [ -f "models/best_model.pth" ]; then
-            echo "✅ Model file exists"
-            ls -la models/
-          else
-            echo "⚠️ Model file not found, creating dummy model"
-            python -c "
-            import torch
-            import torch.nn as nn
-            from torchvision import models
-
-            model = models.efficientnet_b2(weights=None)
-            num_classes = 3
-            in_features = model.classifier[1].in_features
-            model.classifier = nn.Sequential(
-                nn.Dropout(p=0.3),
-                nn.Linear(in_features, num_classes)
-            )
-            torch.save({
-                'model_state_dict': model.state_dict(),
-                'class_names': ['pered', 'zad', 'none']
-            }, 'models/best_model.pth')
-            print('✅ Dummy model created')
-            "
-          fi
+          mkdir -p models
+          python scripts/create_dummy_model.py
       
       - name: Start API server
         run: |
           DATABASE_URL="postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db" \
           SECRET_KEY="test-secret-key-for-ci" \
+          MODEL_PATH="models/dummy_model.pth" \
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 10
       
