@@ -410,6 +410,7 @@ jobs:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth
           SECRET_KEY: "test-secret-key-for-ci"
+          MINIO_SECRET_KEY: "minioadmin123"
 
   # ============================================
   # JOB 5: Сборка Docker образа
