@@ -217,4 +217,5 @@ b.py
 users.json
 logs/
 config.py
-dags\real_model.pth
+dags\real_model.pthdags/real_model.pth
+models/best_model.pth
