@@ -142,7 +142,7 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - airflow_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -164,7 +164,7 @@ services:
         condition: service_healthy
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_db:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_db:5434/airflow
       AIRFLOW__WEBSERVER__RBAC: 'True'
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
@@ -217,6 +217,7 @@ services:
       - LOG_LEVEL=INFO
       - DATABASE_URL=postgresql+asyncpg://wagon_user:wagon_pass@db:5432/wagon_db
       - DATABASE_URL_SYNC=postgresql://wagon_user:wagon_pass@db:5432/wagon_db
+      - SECRET_KEY=your-super-secret-key-change-this-in-production
     depends_on:
       db:
         condition: service_healthy
