@@ -125,6 +125,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db
           TESTING: "true"
           SECRET_KEY: "test-secret-key-for-ci"
+          MINIO_SECRET_KEY: "minioadmin123"
       
       - name: Show coverage
         run: |
