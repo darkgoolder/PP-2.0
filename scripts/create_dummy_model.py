@@ -7,10 +7,16 @@ import torch
 import torch.nn as nn
 from torchvision import models
 import os
+from pathlib import Path
 
 
 def create_dummy_model():
     """Создание фиктивной модели для тестов"""
+    
+    # Создаем директорию models если её нет
+    Path("models").mkdir(parents=True, exist_ok=True)
+    
+    # Создаем модель
     model = models.efficientnet_b2(weights=None)
     num_classes = 3
     in_features = model.classifier[1].in_features
@@ -19,15 +25,15 @@ def create_dummy_model():
         nn.Linear(in_features, num_classes)
     )
     
-    os.makedirs("models", exist_ok=True)
-    
-    # Используем ДРУГОЕ имя файла, чтобы не перезаписывать реальную модель
+    # ИСПРАВЛЕНО: Сохраняем class_names как строку для совместимости с настройками
     torch.save({
         'model_state_dict': model.state_dict(),
-        'class_names': ['pered', 'zad', 'none']
-    }, 'models/dummy_model.pth')  # ← другое имя
+        'class_names': 'pered,zad,none'  # ← строка, а не список
+    }, 'models/dummy_model.pth')
     
     print('✅ Dummy model created as models/dummy_model.pth')
+    print(f'   Model classes: pered, zad, none')
+    print(f'   File size: {os.path.getsize("models/dummy_model.pth")} bytes')
 
 
 if __name__ == "__main__":

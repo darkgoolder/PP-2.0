@@ -331,6 +331,7 @@ jobs:
           DATABASE_URL="postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db" \
           SECRET_KEY="test-secret-key-for-ci" \
           MODEL_PATH="models/dummy_model.pth" \
+          MINIO_SECRET_KEY="minioadmin123" \
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 10
       
