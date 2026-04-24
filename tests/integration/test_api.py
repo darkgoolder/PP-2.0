@@ -45,7 +45,7 @@ class TestAPI:
 
     def test_health_check(self, client):
         """Тест эндпоинта health check"""
-        response = client.get(f"{settings.API_V1_PREFIX}/health")
+        response = client.get(f"{settings.api_v1_prefix}/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -62,7 +62,7 @@ class TestAPI:
         filename, file_obj, content_type = sample_image_file
 
         response = client.post(
-            f"{settings.API_V1_PREFIX}/predict",
+            f"{settings.api_v1_prefix}/predict",
             files={"file": (filename, file_obj, content_type)},
         )
 
@@ -88,7 +88,7 @@ class TestAPI:
         filename, file_obj, content_type = text_file
 
         response = client.post(
-            f"{settings.API_V1_PREFIX}/predict",
+            f"{settings.api_v1_prefix}/predict",
             files={"file": (filename, file_obj, content_type)},
         )
 
@@ -96,7 +96,7 @@ class TestAPI:
 
     def test_predict_endpoint_without_file(self, client):
         """Тест без файла"""
-        response = client.post(f"{settings.API_V1_PREFIX}/predict")
+        response = client.post(f"{settings.api_v1_prefix}/predict")
         assert response.status_code == 422
 
 
@@ -106,14 +106,14 @@ class TestConfigValidation:
     def test_settings_loaded(self):
         """Проверка загрузки настроек"""
         assert settings is not None
-        assert settings.PROJECT_NAME == "Wagon Classifier API"
-        assert settings.VERSION == "2.0.0"
+        assert settings.project_name == "Wagon Classification API"
+        assert settings.version == "2.0.0"
 
 
     def test_paths_exist(self):
         """Проверка существования необходимых директорий"""
-        assert settings.UPLOAD_DIR.exists() or not settings.UPLOAD_DIR.exists()
-        assert settings.MODEL_PATH.suffix == ".pth"
+        assert settings.model_path.parent.exists() or not settings.model_path.parent.exists()
+        assert settings.model_path.suffix == ".pth"
         
 
 # class TestUserAPI:

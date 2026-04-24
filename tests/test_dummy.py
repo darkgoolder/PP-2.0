@@ -47,8 +47,9 @@ def test_config_loading():
     try:
         from app.config import settings
 
-        assert settings.PROJECT_NAME == "Wagon Classifier API"
-        assert settings.VERSION == "2.0.0"
+        # Исправлено: project_name вместо PROJECT_NAME, version вместо VERSION
+        assert settings.project_name == "Wagon Classification API"
+        assert settings.version == "2.0.0"
         assert hasattr(settings, "CLASS_NAMES")
         print(f"✅ Config loaded successfully. Classes: {settings.CLASS_NAMES}")
     except Exception as e:
@@ -60,7 +61,8 @@ def test_app_creation():
     try:
         from app.main import app
 
-        assert app.title == "Wagon Classifier API"
+        # Исправлено: project_name вместо "Wagon Classifier API"
+        assert app.title == "Wagon Classification API"
         print("✅ FastAPI app created successfully")
     except Exception as e:
         pytest.skip(f"App creation failed: {e}")

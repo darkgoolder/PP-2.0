@@ -235,8 +235,8 @@ def get_classifier() -> WagonClassifier:
         from app.config import settings
 
         _classifier_instance = WagonClassifier(
-            model_path=str(settings.model_path),  # ← лучше использовать строчные
-            class_names=settings.class_names_list,  # ← СПИСОК, А НЕ СТРОКА
+            model_path=str(settings.model_path),
+            class_names=settings.class_names_list,
         )
 
     return _classifier_instance
