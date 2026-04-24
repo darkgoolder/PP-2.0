@@ -14,50 +14,84 @@ from app.config import settings
 def test_dummy_model_compatibility():
     """Проверяет, что фиктивная модель совместима с загрузчиком"""
     
-    # 🔧 ИСПРАВЛЕНО: Используем Path объект
     model_path = Path(settings.model_path)
     
-    # Создаем фиктивную модель, если её нет
-    if not model_path.exists():
+    # 🔧 Получаем список классов (всегда как список)
+    if hasattr(settings, 'class_names_list') and settings.class_names_list:
+        class_names_list = settings.class_names_list
+    else:
+        # Парсим строку в список
+        class_names_raw = getattr(settings, 'CLASS_NAMES', "pered,zad,none")
+        if isinstance(class_names_raw, str):
+            class_names_list = [c.strip() for c in class_names_raw.split(",")]
+        else:
+            class_names_list = class_names_raw
+    
+    num_classes = len(class_names_list)
+    print(f"📊 Classes: {class_names_list} (count: {num_classes})")
+    
+    # Создаем фиктивную модель, если её нет или она несовместима
+    need_create_model = False
+    
+    if model_path.exists():
+        # Проверяем существующую модель
+        try:
+            import torch
+            checkpoint = torch.load(model_path, map_location='cpu')
+            if 'model_state_dict' in checkpoint:
+                # Проверяем размерность
+                for key, value in checkpoint['model_state_dict'].items():
+                    if 'classifier.1.weight' in key:
+                        existing_classes = value.shape[0]
+                        if existing_classes != num_classes:
+                            print(f"⚠️ Model has {existing_classes} classes, need {num_classes}")
+                            need_create_model = True
+                        break
+        except Exception as e:
+            print(f"⚠️ Could not inspect model: {e}")
+            need_create_model = True
+    else:
+        need_create_model = True
+    
+    if need_create_model:
         try:
             import torch
             import torch.nn as nn
             from torchvision import models
             
-            # Создаем директорию если её нет
+            # Создаем директорию
             model_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Получаем количество классов
-            class_names = settings.CLASS_NAMES
-            if isinstance(class_names, str):
-                class_list = [c.strip() for c in class_names.split(",")]
-                num_classes = len(class_list)
-            else:
-                num_classes = len(class_names)
-            
-            # Создаем dummy модель
+            # Создаем модель с правильным количеством классов
             model = models.efficientnet_b2(weights=None)
             in_features = model.classifier[1].in_features
+            
             model.classifier = nn.Sequential(
-                nn.Dropout(p=0.3),
+                nn.Dropout(p=0.3, inplace=True),
                 nn.Linear(in_features, num_classes)
             )
             
+            # Сохраняем class_names как строку
+            class_names_str = ','.join(class_names_list)
+            
             torch.save({
                 "model_state_dict": model.state_dict(),
-                "class_names": class_names,
+                "class_names": class_names_str,
             }, model_path)
             
             print(f"✅ Created dummy model at {model_path}")
+            print(f"   Features: {in_features} → Classes: {num_classes}")
+            
         except Exception as e:
             pytest.skip(f"Cannot create dummy model: {e}")
     
     try:
         from PIL import Image
         
+        # 🔧 КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Передаем СПИСОК
         classifier = WagonClassifier(
-            model_path=str(model_path),  # Передаем как строку для совместимости
-            class_names=settings.CLASS_NAMES
+            model_path=str(model_path),
+            class_names=class_names_list  # ← Список, не строка!
         )
 
         # Создаем тестовое изображение
@@ -67,12 +101,14 @@ def test_dummy_model_compatibility():
         predicted_class, confidence, probabilities = classifier.predict(test_image)
 
         # Проверяем результат
-        assert predicted_class in settings.CLASS_NAMES
+        assert predicted_class in class_names_list
         assert 0 <= confidence <= 1
         assert isinstance(probabilities, dict)
-        assert set(probabilities.keys()) == set(settings.CLASS_NAMES)
+        assert len(probabilities) == num_classes
+        assert all(class_name in probabilities for class_name in class_names_list)
 
-        print(f"✅ Dummy model works! Predicted: {predicted_class} with confidence {confidence:.2%}")
+        print(f"✅ Model works! Predicted: {predicted_class} with confidence {confidence:.2%}")
+        print(f"   Probabilities: {probabilities}")
 
     except Exception as e:
         pytest.fail(f"Model compatibility test failed: {e}")
