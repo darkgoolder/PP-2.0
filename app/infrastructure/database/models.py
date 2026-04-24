@@ -4,12 +4,22 @@ SQLAlchemy модели
 
 import enum
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, String, ForeignKey
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.sql import func
 
 from app.domain.entities import User, UserRole
 
 from .connection import Base
+
 
 class UserRoleDB(enum.Enum):
     USER = "user"
@@ -95,9 +105,11 @@ class DailyReportModel(Base):
 
 class PredictionLogModel(Base):
     __tablename__ = "prediction_logs"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     image_filename = Column(String(255))
     predicted_class = Column(String(20))
     confidence = Column(Float)

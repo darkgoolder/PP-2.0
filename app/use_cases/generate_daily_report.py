@@ -49,6 +49,7 @@ class GenerateDailyReportUseCase:
 
         # Проверка модели и получение точности (идемпотентно)
         import os
+
         import torch
 
         from app.config import settings
@@ -59,31 +60,36 @@ class GenerateDailyReportUseCase:
         if model_exists:
             try:
                 checkpoint = torch.load(settings.model_path, map_location="cpu")
-                
+
                 # Пробуем получить точность из разных возможных ключей
                 if isinstance(checkpoint, dict):
                     # Вариант 1: ключ 'val_acc'
-                    if 'val_acc' in checkpoint:
-                        model_accuracy = checkpoint['val_acc']
+                    if "val_acc" in checkpoint:
+                        model_accuracy = checkpoint["val_acc"]
                     # Вариант 2: ключ 'accuracy'
-                    elif 'accuracy' in checkpoint:
-                        model_accuracy = checkpoint['accuracy']
+                    elif "accuracy" in checkpoint:
+                        model_accuracy = checkpoint["accuracy"]
                     # Вариант 3: ключ 'best_val_acc'
-                    elif 'best_val_acc' in checkpoint:
-                        model_accuracy = checkpoint['best_val_acc']
+                    elif "best_val_acc" in checkpoint:
+                        model_accuracy = checkpoint["best_val_acc"]
                     # Вариант 4: ключ 'model_accuracy'
-                    elif 'model_accuracy' in checkpoint:
-                        model_accuracy = checkpoint['model_accuracy']
-                    
+                    elif "model_accuracy" in checkpoint:
+                        model_accuracy = checkpoint["model_accuracy"]
+
                     # Если нашли точность, округляем до 4 знаков
                     if model_accuracy is not None:
                         model_accuracy = round(float(model_accuracy), 4)
                         logger.info(f"Model accuracy: {model_accuracy}")
                     else:
-                        logger.warning("No accuracy found in model checkpoint. Available keys: %s", list(checkpoint.keys()))
+                        logger.warning(
+                            "No accuracy found in model checkpoint. Available keys: %s",
+                            list(checkpoint.keys()),
+                        )
                 else:
-                    logger.warning("Checkpoint is not a dictionary, type: %s", type(checkpoint))
-                    
+                    logger.warning(
+                        "Checkpoint is not a dictionary, type: %s", type(checkpoint)
+                    )
+
             except Exception as e:
                 logger.warning(f"Model corrupted or cannot load: {e}")
                 model_exists = False

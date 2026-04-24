@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -50,14 +50,18 @@ class Settings(BaseSettings):
     # БАКЕТЫ
     # ============================================
     secrets_bucket: str = Field(default="wagon-secrets", env="SECRETS_BUCKET")
-    secrets_s3_path: str = Field(default="secrets/encrypted.json", env="SECRETS_S3_PATH")
+    secrets_s3_path: str = Field(
+        default="secrets/encrypted.json", env="SECRETS_S3_PATH"
+    )
 
     # ============================================
     # БЕЗОПАСНОСТЬ (JWT)
     # ============================================
     secret_key: SecretStr = Field(..., env="SECRET_KEY")
     algorithm: str = Field(default="HS256", env="ALGORITHM")
-    access_token_expire_minutes: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    access_token_expire_minutes: int = Field(
+        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
     admin_api_token: Optional[SecretStr] = Field(default=None, env="ADMIN_API_TOKEN")
 
     # ============================================
@@ -101,6 +105,7 @@ class Settings(BaseSettings):
     def device(self) -> str:
         try:
             import torch
+
             return "cuda" if torch.cuda.is_available() else "cpu"
         except ImportError:
             return "cpu"

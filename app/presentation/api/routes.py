@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 from datetime import datetime
+
 from app.infrastructure.database.models import PredictionLogModel
 
 # ================================================
@@ -71,7 +72,7 @@ async def predict_image(file: UploadFile = File(..., description="Изображ
 
         classifier = get_classifier()
         predicted_class, confidence, probabilities = classifier.predict(image)
-        
+
         # ===== Логирование предсказания =====
         db_manager = get_db_manager()
         if db_manager:
@@ -82,7 +83,7 @@ async def predict_image(file: UploadFile = File(..., description="Изображ
                         predicted_class=predicted_class,
                         confidence=confidence,
                         created_at=datetime.now(),
-                        request_id=str(uuid.uuid4())
+                        request_id=str(uuid.uuid4()),
                     )
                     session.add(log)
                     await session.commit()
