@@ -127,26 +127,26 @@ class Settings(BaseSettings):
             return self.class_names_list.index(class_name)
         except ValueError:
             raise ValueError(f"Class '{class_name}' not found")
-        
+
     @property
     def model_path_obj(self) -> Path:
         """Путь к модели как Path объект"""
         return Path(self.model_path)
-    
+
     @property
     def models_dir(self) -> Path:
         """Директория с моделями"""
         models_dir = Path(self.model_path).parent
         models_dir.mkdir(parents=True, exist_ok=True)
         return models_dir
-    
+
     @property
     def upload_dir(self) -> Path:
         """Директория для загрузок"""
         upload_dir = Path("./uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
         return upload_dir
-    
+
     @property
     def data_dir(self) -> Path:
         """Директория для данных"""
