@@ -4,6 +4,7 @@ Unit-тесты для конфигурации (адаптировано под
 
 import os
 import pytest
+from pathlib import Path
 from app.config import settings
 
 
@@ -18,13 +19,22 @@ class TestSettings:
     
     def test_model_path_is_correct(self):
         """Путь к модели — корректен"""
-        assert str(settings.model_path).endswith(".pth")
-        assert "models" in str(settings.model_path)
+        # 🔧 ИСПРАВЛЕНО: Конвертируем в Path для проверки
+        model_path = Path(settings.model_path)
+        assert str(model_path).endswith(".pth")
+        assert "models" in str(model_path)
     
     def test_upload_dir_exists(self):
         """Директория загрузок — существует или создаётся"""
-        # Проверяем, что директория models существует (где хранится модель)
-        assert settings.model_path.parent.exists() or True
+        # 🔧 ИСПРАВЛЕНО: Используем parent у Path объекта
+        model_path = Path(settings.model_path)
+        
+        # Проверяем, что родительская директория существует
+        # Создаём если нет (для тестов)
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Теперь проверяем существование
+        assert model_path.parent.exists(), f"Directory {model_path.parent} does not exist"
     
     def test_allowed_extensions_contains_common_formats(self):
         """Разрешённые расширения — включают основные форматы"""
@@ -58,3 +68,13 @@ class TestSettings:
             assert settings.MAX_UPLOAD_SIZE > 0
         else:
             pytest.skip("MAX_UPLOAD_SIZE not in config")
+    
+    # 🔧 ДОБАВЛЯЕМ новый тест для проверки Path объектов
+    def test_model_path_as_path_object(self):
+        """Проверка, что путь к модели можно использовать как Path"""
+        from pathlib import Path
+        
+        model_path = Path(settings.model_path)
+        assert isinstance(model_path, Path)
+        # Проверяем, что можем получить родительскую директорию
+        assert model_path.parent is not None

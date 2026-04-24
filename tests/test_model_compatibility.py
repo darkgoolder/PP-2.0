@@ -2,11 +2,11 @@
 
 import pytest
 import sys
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# ИСПРАВЛЕННЫЙ ИМПОРТ
 from app.infrastructure.model_repository import WagonClassifier
 from app.config import settings
 
@@ -14,29 +14,41 @@ from app.config import settings
 def test_dummy_model_compatibility():
     """Проверяет, что фиктивная модель совместима с загрузчиком"""
     
-    # Сначала создаем фиктивную модель, если её нет
-    if not settings.model_path.exists():
+    # 🔧 ИСПРАВЛЕНО: Используем Path объект
+    model_path = Path(settings.model_path)
+    
+    # Создаем фиктивную модель, если её нет
+    if not model_path.exists():
         try:
-            # Создаем фиктивную модель
             import torch
             import torch.nn as nn
             from torchvision import models
             
-            os.makedirs(settings.model_path.parent, exist_ok=True)
+            # Создаем директорию если её нет
+            model_path.parent.mkdir(parents=True, exist_ok=True)
             
+            # Получаем количество классов
+            class_names = settings.CLASS_NAMES
+            if isinstance(class_names, str):
+                class_list = [c.strip() for c in class_names.split(",")]
+                num_classes = len(class_list)
+            else:
+                num_classes = len(class_names)
+            
+            # Создаем dummy модель
             model = models.efficientnet_b2(weights=None)
             in_features = model.classifier[1].in_features
             model.classifier = nn.Sequential(
                 nn.Dropout(p=0.3),
-                nn.Linear(in_features, len(settings.CLASS_NAMES))
+                nn.Linear(in_features, num_classes)
             )
             
             torch.save({
                 "model_state_dict": model.state_dict(),
-                "class_names": settings.CLASS_NAMES,
-            }, settings.model_path)
+                "class_names": class_names,
+            }, model_path)
             
-            print(f"✅ Created dummy model at {settings.model_path}")
+            print(f"✅ Created dummy model at {model_path}")
         except Exception as e:
             pytest.skip(f"Cannot create dummy model: {e}")
     
@@ -44,7 +56,7 @@ def test_dummy_model_compatibility():
         from PIL import Image
         
         classifier = WagonClassifier(
-            model_path=str(settings.model_path),
+            model_path=str(model_path),  # Передаем как строку для совместимости
             class_names=settings.CLASS_NAMES
         )
 
@@ -64,7 +76,3 @@ def test_dummy_model_compatibility():
 
     except Exception as e:
         pytest.fail(f"Model compatibility test failed: {e}")
-
-
-# Добавляем импорт os для создания фиктивной модели
-import os
