@@ -228,3 +228,52 @@ class TestPredictionResult:
         assert data["confidence"] == 0.95
         assert data["probabilities"] == {"pered": 0.95}
         assert "timestamp" in data
+        
+        
+        
+class TestDailyReportEntity:
+    """Тесты сущности DailyReport"""
+    
+    def test_daily_report_to_dict_returns_all_fields(self):
+        """DailyReport.to_dict() — возвращает все поля"""
+        from app.domain.entities import DailyReport
+        from datetime import datetime
+        
+        report_date = datetime(2024, 1, 15, 10, 30, 0)
+        report = DailyReport(
+            report_date=report_date,
+            new_users_count=5,
+            total_predictions=100,
+            model_exists=True,
+            model_accuracy=0.95
+        )
+        
+        data = report.to_dict()
+        
+        assert data["report_date"] == report_date.isoformat()
+        assert data["new_users_count"] == 5
+        assert data["total_predictions"] == 100
+        assert data["model_exists"] is True
+        assert data["model_accuracy"] == 0.95
+        assert "report_generated_at" in data
+
+
+class TestSecretsBatchEntity:
+    """Тесты сущности SecretsBatch (строки 132, 134)"""
+    
+    def test_secrets_batch_from_dict_with_string_dates(self):
+        """SecretsBatch.from_dict() — обрабатывает даты в виде строк"""
+        from app.domain.entities import SecretsBatch
+        
+        data = {
+            "secrets": {"key": "value"},
+            "version": "1.0",
+            "environment": "test",
+            "created_at": "2024-01-15T10:30:00",
+            "updated_at": "2024-01-15T10:30:00"
+        }
+        
+        batch = SecretsBatch.from_dict(data)
+        
+        assert batch.created_at.year == 2024
+        assert batch.updated_at.year == 2024

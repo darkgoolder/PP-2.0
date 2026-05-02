@@ -54,7 +54,7 @@ jobs:
         continue-on-error: true
       
       - name: Run mypy (проверка типов)
-        run: mypy app/ --ignore-missing-imports --no-strict-optional --python-version 3.9
+        run: mypy -p app --ignore-missing-imports --no-strict-optional --python-version 3.9
         continue-on-error: true
 
   # ============================================
@@ -103,9 +103,6 @@ jobs:
       - name: Create directories for tests
         run: mkdir -p models uploads
       
-      - name: Create dummy model for tests
-        run: python scripts/create_dummy_model.py
-      
       - name: Wait for PostgreSQL to be ready
         run: |
           for i in {1..30}; do
@@ -127,6 +124,8 @@ jobs:
           MODEL_PATH: models/best_model.pth
           DATABASE_URL: postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db
           TESTING: "true"
+          SECRET_KEY: "test-secret-key-for-ci"
+          MINIO_SECRET_KEY: "minioadmin123"
       
       - name: Show coverage
         run: |
@@ -136,7 +135,6 @@ jobs:
           echo "=========================================="
           echo ""
           
-          # Без --skip-covered — покажет ВСЕ файлы
           coverage report
           
           echo ""
@@ -166,8 +164,121 @@ jobs:
           path: coverage.xml
         if: always()
 
+  # # ============================================
+  # # JOB 3: API Endpoint Tests
+  # # ============================================
+  # api-test:
+  #   runs-on: ubuntu-latest
+  #   needs: test
+  #   services:
+  #     postgres:
+  #       image: postgres:15-alpine
+  #       env:
+  #         POSTGRES_USER: wagon_user
+  #         POSTGRES_PASSWORD: wagon_pass
+  #         POSTGRES_DB: wagon_db
+  #       ports:
+  #         - 5432:5432
+  #       options: >-
+  #         --health-cmd pg_isready
+  #         --health-interval 10s
+  #         --health-timeout 5s
+  #         --health-retries 5
+    
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+      
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
+      
+  #     - name: Install uv
+  #       uses: astral-sh/setup-uv@v3
+      
+  #     - name: Install dependencies
+  #       run: |
+  #         uv pip install --system fastapi uvicorn httpx
+  #         uv pip install --system asyncpg sqlalchemy bcrypt
+  #         uv pip install --system torch torchvision --index-url https://download.pytorch.org/whl/cpu
+  #         uv pip install --system -r requirements.txt
+      
+  #     - name: Create directories
+  #       run: mkdir -p models uploads
+      
+  #     - name: Check if model exists
+  #       run: |
+  #         if [ -f "models/best_model.pth" ]; then
+  #           echo "✅ Model file exists"
+  #           ls -la models/
+  #         else
+  #           echo "⚠️ Model file not found, creating dummy model"
+  #           python -c "
+  #           import torch
+  #           import torch.nn as nn
+  #           from torchvision import models
 
-    # ============================================
+  #           model = models.efficientnet_b2(weights=None)
+  #           num_classes = 3
+  #           in_features = model.classifier[1].in_features
+  #           model.classifier = nn.Sequential(
+  #               nn.Dropout(p=0.3),
+  #               nn.Linear(in_features, num_classes)
+  #           )
+  #           torch.save({
+  #               'model_state_dict': model.state_dict(),
+  #               'class_names': ['pered', 'zad', 'none']
+  #           }, 'models/best_model.pth')
+  #           print('✅ Dummy model created')
+  #           "
+  #         fi
+      
+  #     - name: Start API server
+  #       run: |
+  #         DATABASE_URL="postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db" \
+  #         SECRET_KEY="test-secret-key-for-ci" \
+  #         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+  #         sleep 10
+      
+  #     - name: Wait for API to be ready
+  #       run: |
+  #         for i in {1..30}; do
+  #           if curl -s -f http://localhost:8000/api/v1/health > /dev/null 2>&1; then
+  #             echo "API is ready"
+  #             break
+  #           fi
+  #           echo "Waiting for API... $i/30"
+  #           sleep 2
+  #         done
+      
+  #     - name: Test endpoints
+  #       run: |
+  #         echo "=== Health Check ==="
+  #         curl -s http://localhost:8000/api/v1/health
+  #         echo ""
+          
+  #         echo "=== Register ==="
+  #         curl -s -X POST http://localhost:8000/api/v1/register \
+  #           -H "Content-Type: application/json" \
+  #           -d '{"username":"apitestuser","email":"api@test.com","password":"test123"}'
+  #         echo ""
+          
+  #         echo "=== Login ==="
+  #         curl -s -X POST http://localhost:8000/api/v1/login \
+  #           -H "Content-Type: application/json" \
+  #           -d '{"username":"apitestuser","password":"test123"}'
+  #         echo ""
+          
+  #         echo "=== Get Users ==="
+  #         curl -s http://localhost:8000/api/v1/users
+  #         echo ""
+      
+  #     - name: Stop API server
+  #       run: kill $(lsof -t -i:8000) || true
+
+
+  # ============================================
   # JOB 3: API Endpoint Tests
   # ============================================
   api-test:
@@ -212,28 +323,15 @@ jobs:
       
       - name: Create dummy model
         run: |
-          python -c "
-          import torch
-          import torch.nn as nn
-          from torchvision import models
-
-          model = models.efficientnet_b2(weights=None)
-          num_classes = 3
-          in_features = model.classifier[1].in_features
-          model.classifier = nn.Sequential(
-              nn.Dropout(p=0.3),
-              nn.Linear(in_features, num_classes)
-          )
-          torch.save({
-              'model_state_dict': model.state_dict(),
-              'class_names': ['pered', 'zad', 'none']
-          }, 'models/best_model.pth')
-          print('✅ Dummy model created')
-          "
+          mkdir -p models
+          python scripts/create_dummy_model.py
       
       - name: Start API server
         run: |
           DATABASE_URL="postgresql+asyncpg://wagon_user:wagon_pass@localhost:5432/wagon_db" \
+          SECRET_KEY="test-secret-key-for-ci" \
+          MODEL_PATH="models/dummy_model.pth" \
+          MINIO_SECRET_KEY="minioadmin123" \
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 10
       
@@ -296,16 +394,24 @@ jobs:
           uv pip install --system pytest pytest-asyncio
           uv pip install --system -r requirements.txt
       
-      - name: Create dummy model
+      - name: Create directories
+        run: mkdir -p models uploads
+      
+      - name: Check if model exists
         run: |
-          mkdir -p models
-          python scripts/create_dummy_model.py
+          if [ -f "models/best_model.pth" ]; then
+            echo "✅ Model file exists"
+          else
+            echo "⚠️ Model file not found, tests will use mocks"
+          fi
       
       - name: Run basic tests (without DB)
         run: pytest tests/test_dummy.py tests/test_model_compatibility.py -v
         env:
           PYTHONPATH: .
           MODEL_PATH: models/best_model.pth
+          SECRET_KEY: "test-secret-key-for-ci"
+          MINIO_SECRET_KEY: "minioadmin123"
 
   # ============================================
   # JOB 5: Сборка Docker образа
@@ -398,25 +504,4 @@ jobs:
                 title: `Pipeline ${conclusion}`,
                 summary: `Lint: ${{ needs.lint.result }}\nTest: ${{ needs.test.result }}\nTest Light: ${{ needs.test-light.result }}\nAPI Test: ${{ needs.api-test.result }}\nDocker: ${{ needs.docker-build.result }}`
               }
-            });
-      
-      # - name: Send to Telegram (опционально)
-      #   if: secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != ''
-      #   uses: appleboy/telegram-action@master
-      #   with:
-      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
-      #     token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      #     message: |
-      #       🚀 CI/CD Pipeline
-            
-      #       Repository: ${{ github.repository }}
-      #       Branch: ${{ github.ref_name }}
-      #       Status: ${{ steps.status.outputs.status }}
-            
-      #       Lint: ${{ needs.lint.result }}
-      #       Tests: ${{ needs.test.result }}
-      #       API Tests: ${{ needs.api-test.result }}
-      #       Docker: ${{ needs.docker-build.result }}
-            
-      #       Commit: ${{ github.event.head_commit.message }}
-      #       Author: ${{ github.event.head_commit.author.name }}
+            })

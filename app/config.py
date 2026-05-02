@@ -1,6 +1,5 @@
-﻿# app/config.py
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -34,9 +33,12 @@ class Settings(BaseSettings):
     # МОДЕЛЬ
     # ============================================
     model_path: str = Field(default="./models/best_model.pth", env="MODEL_PATH")
+    MODEL_PATH: str = Field(default="./models/best_model.pth", env="MODEL_PATH")
+    class_names: str = Field(default="pered,zad,none", env="CLASS_NAMES")
+    CLASS_NAMES: str = Field(default="pered,zad,none", env="CLASS_NAMES")
 
     # ============================================
-    # MINIO S3 (ВСЕ КРЕДЫ ИЗ .env)
+    # MINIO S3
     # ============================================
     minio_endpoint: str = Field(default="localhost:9000", env="MINIO_ENDPOINT")
     minio_access_key: str = Field(default="minioadmin", env="MINIO_ACCESS_KEY")
@@ -67,10 +69,19 @@ class Settings(BaseSettings):
     # ============================================
     db_type: str = Field(default="sqlite", env="DB_TYPE")
     sqlite_path: Path = Field(default="./data/wagon.db", env="SQLITE_PATH")
+    DATABASE_URL: Optional[str] = Field(default=None, env="DATABASE_URL")
 
     # ============================================
     # СВОЙСТВА
     # ============================================
+
+    @property
+    def class_names_list(self) -> List[str]:
+        return [c.strip() for c in self.class_names.split(",")]
+
+    @property
+    def num_classes(self) -> int:
+        return len(self.class_names_list)
 
     @property
     def minio_config(self) -> dict:
@@ -89,6 +100,59 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def device(self) -> str:
+        try:
+            import torch
+
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        except ImportError:
+            return "cpu"
+
+    @property
+    def ALLOWED_EXTENSIONS(self) -> set:
+        return {".jpg", ".jpeg", ".png", ".bmp"}
+
+    @property
+    def MAX_UPLOAD_SIZE(self) -> int:
+        return 10 * 1024 * 1024
+
+    def validate_file_extension(self, filename: str) -> bool:
+        ext = Path(filename).suffix.lower()
+        return ext in self.ALLOWED_EXTENSIONS
+
+    def get_class_index(self, class_name: str) -> int:
+        try:
+            return self.class_names_list.index(class_name)
+        except ValueError:
+            raise ValueError(f"Class '{class_name}' not found")
+
+    @property
+    def model_path_obj(self) -> Path:
+        """Путь к модели как Path объект"""
+        return Path(self.model_path)
+
+    @property
+    def models_dir(self) -> Path:
+        """Директория с моделями"""
+        models_dir = Path(self.model_path).parent
+        models_dir.mkdir(parents=True, exist_ok=True)
+        return models_dir
+
+    @property
+    def upload_dir(self) -> Path:
+        """Директория для загрузок"""
+        upload_dir = Path("./uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        return upload_dir
+
+    @property
+    def data_dir(self) -> Path:
+        """Директория для данных"""
+        data_dir = Path("./data")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
 
 
 settings = Settings()

@@ -86,7 +86,7 @@ class RobustWagonDataset(Dataset):
 
 def create_model(num_classes: int = 3) -> nn.Module:
     """Создание модели EfficientNet-B2"""
-    model = models.efficientnet_b2(weights="DEFAULT")
+    model = models.efficientnet_b2(weights=None)
     in_features = model.classifier[1].in_features
     model.classifier = nn.Sequential(
         nn.Dropout(p=0.3), nn.Linear(in_features, num_classes)
@@ -235,8 +235,8 @@ def get_classifier() -> WagonClassifier:
         from app.config import settings
 
         _classifier_instance = WagonClassifier(
-            model_path=str(settings.MODEL_PATH),
-            class_names=settings.CLASS_NAMES,
+            model_path=str(settings.model_path),
+            class_names=settings.class_names_list,
         )
 
     return _classifier_instance
