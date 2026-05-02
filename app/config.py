@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -50,14 +50,18 @@ class Settings(BaseSettings):
     # БАКЕТЫ
     # ============================================
     secrets_bucket: str = Field(default="wagon-secrets", env="SECRETS_BUCKET")
-    secrets_s3_path: str = Field(default="secrets/encrypted.json", env="SECRETS_S3_PATH")
+    secrets_s3_path: str = Field(
+        default="secrets/encrypted.json", env="SECRETS_S3_PATH"
+    )
 
     # ============================================
     # БЕЗОПАСНОСТЬ (JWT)
     # ============================================
     secret_key: SecretStr = Field(..., env="SECRET_KEY")
     algorithm: str = Field(default="HS256", env="ALGORITHM")
-    access_token_expire_minutes: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    access_token_expire_minutes: int = Field(
+        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
     admin_api_token: Optional[SecretStr] = Field(default=None, env="ADMIN_API_TOKEN")
 
     # ============================================
@@ -101,6 +105,7 @@ class Settings(BaseSettings):
     def device(self) -> str:
         try:
             import torch
+
             return "cuda" if torch.cuda.is_available() else "cpu"
         except ImportError:
             return "cpu"
@@ -122,6 +127,32 @@ class Settings(BaseSettings):
             return self.class_names_list.index(class_name)
         except ValueError:
             raise ValueError(f"Class '{class_name}' not found")
+
+    @property
+    def model_path_obj(self) -> Path:
+        """Путь к модели как Path объект"""
+        return Path(self.model_path)
+
+    @property
+    def models_dir(self) -> Path:
+        """Директория с моделями"""
+        models_dir = Path(self.model_path).parent
+        models_dir.mkdir(parents=True, exist_ok=True)
+        return models_dir
+
+    @property
+    def upload_dir(self) -> Path:
+        """Директория для загрузок"""
+        upload_dir = Path("./uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        return upload_dir
+
+    @property
+    def data_dir(self) -> Path:
+        """Директория для данных"""
+        data_dir = Path("./data")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
 
 
 settings = Settings()

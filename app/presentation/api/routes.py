@@ -29,6 +29,9 @@ from app.use_cases.register_user import RegisterUserUseCase
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+from datetime import datetime
+
+from app.infrastructure.database.models import PredictionLogModel
 
 # ================================================
 # Эндпоинты для проверки здоровья
@@ -69,6 +72,25 @@ async def predict_image(file: UploadFile = File(..., description="Изображ
 
         classifier = get_classifier()
         predicted_class, confidence, probabilities = classifier.predict(image)
+
+        # ===== Логирование предсказания =====
+        db_manager = get_db_manager()
+        if db_manager:
+            async for session in db_manager.get_session():
+                try:
+                    log = PredictionLogModel(
+                        image_filename=file.filename,
+                        predicted_class=predicted_class,
+                        confidence=confidence,
+                        created_at=datetime.now(),
+                        request_id=str(uuid.uuid4()),
+                    )
+                    session.add(log)
+                    await session.commit()
+                except Exception as e:
+                    logger.warning(f"Failed to log prediction: {e}")
+                break
+        # ============================================
 
         response_data = {
             "class": predicted_class,
