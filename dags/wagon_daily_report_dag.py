@@ -7,71 +7,92 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.models import Variable
+from cryptography.fernet import Fernet
 import os
 import psycopg2
 import json
 import tempfile
+import subprocess
 
 # ============================================
-# ЗАГРУЗКА СЕКРЕТОВ ИЗ MINIO
+# ФУНКЦИЯ ДЛЯ РАСШИФРОВКИ СЕКРЕТОВ
 # ============================================
 
-def get_secret_from_minio(secret_key: str) -> str:
-    """
-    Получение секрета из MinIO через mc клиент
-    """
-    import subprocess
+def get_encryption_key():
+    """Получение ключа шифрования из файла"""
+    key_paths = [
+        "/home/airflow/.wagon_encryption_key",
+        "/opt/airflow/.wagon_encryption_key",
+        "/home/airflow/airflow/.wagon_encryption_key"
+    ]
     
-    # Временный файл для секретов
-    with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as tmp:
-        # Копируем секреты из MinIO
-        result = subprocess.run([
-            "docker", "run", "--rm",
-            "-v", f"{tmp.name}:/tmp/secrets.json",
-            "minio/mc:latest",
-            "sh", "-c",
-            f"mc alias set wagon-local http://host.docker.internal:9000 minioadmin minioadmin123 && "
-            f"mc cp wagon-local/wagon-secrets/{secret_key} /tmp/secrets.json 2>/dev/null || echo 'null'"
-        ], capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            with open(tmp.name, 'r') as f:
-                return f.read().strip()
+    for key_path in key_paths:
+        if os.path.exists(key_path):
+            with open(key_path, 'rb') as f:
+                return f.read()
     
-    return None
+    # Если ключ не найден, пробуем получить из Variable
+    try:
+        key = Variable.get("ENCRYPTION_KEY")
+        return key.encode()
+    except:
+        pass
+    
+    raise FileNotFoundError("Encryption key not found")
 
 
-def load_all_secrets():
-    """
-    Загрузка всех секретов из MinIO в Airflow Variables
-    """
-    import subprocess
-    import json
-    
-    # Копируем весь файл секретов
-    with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as tmp:
-        subprocess.run([
-            "docker", "run", "--rm",
-            "-v", f"{tmp.name}:/tmp/secrets.json",
-            "minio/mc:latest",
-            "sh", "-c",
-            "mc alias set wagon-local http://host.docker.internal:9000 minioadmin minioadmin123 && "
-            "mc cp wagon-local/wagon-secrets/secrets/encrypted.json /tmp/secrets.json"
-        ], capture_output=True)
+def decrypt_secret(encrypted_value: str) -> str:
+    """Расшифровка секрета"""
+    try:
+        key = get_encryption_key()
+        cipher = Fernet(key)
+        return cipher.decrypt(encrypted_value.encode()).decode()
+    except Exception as e:
+        print(f"❌ Decryption error: {e}")
+        raise
+
+
+def load_secrets_from_minio():
+    """Загрузка секретов из MinIO в Airflow Variables"""
+    try:
+        # Получаем credentials из переменных окружения
+        minio_endpoint = os.environ.get("MINIO_ENDPOINT", "minio:9000")
+        minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
+        minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin123")
         
-        try:
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as tmp:
+            # Копируем файл секретов из MinIO
+            result = subprocess.run([
+                "docker", "run", "--rm",
+                "-v", f"{tmp.name}:/tmp/secrets.json",
+                "--network", "wagon_network",
+                "minio/mc:latest",
+                "sh", "-c",
+                f"mc alias set wagon-local http://{minio_endpoint} {minio_access_key} {minio_secret_key} && "
+                "mc cp wagon-local/wagon-secrets/secrets/encrypted.json /tmp/secrets.json"
+            ], capture_output=True)
+            
+            if result.returncode != 0:
+                print("⚠️ Could not load secrets from MinIO")
+                return {}
+            
             with open(tmp.name, 'r') as f:
                 secrets_data = json.load(f)
-                
-            # Сохраняем в Airflow Variables
-            for key, value in secrets_data.get('secrets', {}).items():
-                Variable.set(key, value)
-                print(f"✅ Secret {key} loaded from MinIO")
-                
+            
+            # Сохраняем расшифрованные секреты в Variables
+            for key, encrypted_value in secrets_data.get('secrets', {}).items():
+                try:
+                    decrypted_value = decrypt_secret(encrypted_value)
+                    Variable.set(key, decrypted_value)
+                    print(f"✅ Secret {key} loaded and decrypted")
+                except Exception as e:
+                    print(f"⚠️ Could not decrypt {key}: {e}")
+            
             return secrets_data.get('secrets', {})
-        except:
-            print("⚠️ Could not load secrets from MinIO")
-            return {}
+            
+    except Exception as e:
+        print(f"⚠️ Error loading secrets: {e}")
+        return {}
 
 
 # ============================================
@@ -79,48 +100,54 @@ def load_all_secrets():
 # ============================================
 
 def check_model_health(**context):
-    """
-    Проверка наличия модели с использованием секретов из MinIO
-    """
+    """Проверка наличия модели"""
     model_path = "/opt/airflow/models/best_model.pth"
     exists = os.path.exists(model_path)
     
-    # Логируем статус
     print(f"🔍 Model path: {model_path}")
     print(f"✅ Model exists: {exists}")
     
-    # Загружаем секреты из MinIO (опционально)
-    secrets = load_all_secrets()
-    if secrets:
-        print(f"🔐 Loaded {len(secrets)} secrets from MinIO")
+    # Попытка загрузить секреты (опционально)
+    try:
+        secrets = load_secrets_from_minio()
+        if secrets:
+            print(f"🔐 Loaded {len(secrets)} secrets from MinIO")
+    except Exception as e:
+        print(f"⚠️ Could not load secrets: {e}")
     
-    return {"model_exists": exists, "secrets_loaded": len(secrets)}
+    return {"model_exists": exists, "secrets_loaded": len(secrets) if 'secrets' in locals() else 0}
 
 
 def generate_daily_report(**context):
-    """
-    Генерация ежедневного отчёта с использованием секретов из MinIO
-    """
-    from datetime import datetime
+    """Генерация ежедневного отчёта"""
     import psycopg2
+    from datetime import datetime
     
-    # Определяем дату отчёта
-    execution_date = context.get('execution_date')
-    if execution_date:
-        report_date = execution_date.date()
+    logical_date = context.get('logical_date')
+    if logical_date:
+        report_date = logical_date.date()
     else:
         report_date = datetime.now().date() - timedelta(days=1)
     
     print(f"📅 Report date: {report_date}")
     
-    # Получаем секреты из Airflow Variables (загружены из MinIO)
-    db_user = Variable.get("DB_USER", default_var="wagon_user")
-    db_password = Variable.get("DB_PASSWORD", default_var="wagon_pass")
-    db_name = Variable.get("DB_NAME", default_var="wagon_db")
-    db_host = "host.docker.internal"
+    # Получаем секреты (сначала из Variables, потом fallback из .env)
+    try:
+        db_user = Variable.get("DB_USER")
+        db_password = Variable.get("DB_PASSWORD")
+        db_name = Variable.get("DB_NAME")
+        print("✅ Using secrets from Airflow Variables")
+    except:
+        # Fallback: используем переменные окружения из Docker
+        db_user = os.environ.get("DB_USER", "wagon_user")
+        db_password = os.environ.get("DB_PASSWORD", "wagon_pass")
+        db_name = os.environ.get("DB_NAME", "wagon_db")
+        print("⚠️ Using fallback environment variables")
+    
+    db_host = "host.docker.internal"  # Для доступа к БД на хосте
     db_port = 5432
     
-    print(f"🔐 Connecting to DB with user: {db_user}")
+    print(f"🔐 Connecting to DB (user: {db_user})")
     
     try:
         conn = psycopg2.connect(
@@ -132,6 +159,26 @@ def generate_daily_report(**context):
         )
         cursor = conn.cursor()
         
+        # Проверка существования таблицы users
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'users'
+            );
+        """)
+        users_exists = cursor.fetchone()[0]
+        
+        if not users_exists:
+            print("⚠️ Table 'users' does not exist, creating...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+        
         # Подсчёт новых пользователей
         cursor.execute(
             "SELECT COUNT(*) FROM users WHERE DATE(created_at) = %s",
@@ -140,18 +187,39 @@ def generate_daily_report(**context):
         new_users = cursor.fetchone()[0]
         print(f"👥 New users on {report_date}: {new_users}")
         
+        # Проверка существования таблицы daily_reports
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'daily_reports'
+            );
+        """)
+        reports_exists = cursor.fetchone()[0]
+        
+        if not reports_exists:
+            print("⚠️ Table 'daily_reports' does not exist, creating...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS daily_reports (
+                    id SERIAL PRIMARY KEY,
+                    report_date DATE UNIQUE,
+                    new_users_count INTEGER DEFAULT 0,
+                    model_exists BOOLEAN DEFAULT FALSE,
+                    report_generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+        
         # Проверка существования отчёта
         cursor.execute(
             "SELECT id FROM daily_reports WHERE report_date = %s",
             (report_date,)
         )
-        exists = cursor.fetchone()
+        exists_row = cursor.fetchone()
         
-        # Модель существует?
         model_path = "/opt/airflow/models/best_model.pth"
         model_exists = os.path.exists(model_path)
         
-        if exists:
+        if exists_row:
             print(f"⚠️ Report for {report_date} already exists, updating...")
             cursor.execute("""
                 UPDATE daily_reports 
@@ -191,11 +259,10 @@ default_args = {
     'owner': 'wagon-team',
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-    'email_on_failure': True,
+    'retries': 2,
+    'retry_delay': timedelta(minutes=3),
+    'email_on_failure': False,
     'email_on_retry': False,
-    'email': ['alerts@wagon-classifier.com'],
 }
 
 dag = DAG(
