@@ -9,6 +9,7 @@ services:
       POSTGRES_DB: ${AIRFLOW_DB_NAME}
     volumes:
       - postgres_airflow_data:/var/lib/postgresql/data
+      - ./scripts/daily_report.py:/opt/airflow/daily_report.py:ro
     ports:
       - "5434:5432"
     healthcheck:
@@ -42,7 +43,8 @@ services:
       AIRFLOW__WEBSERVER__RBAC: 'True'
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      _PIP_ADDITIONAL_REQUIREMENTS: pydantic-settings sqlalchemy asyncpg psycopg2-binary bcrypt minio apache-airflow-providers-docker
+      _PIP_ADDITIONAL_REQUIREMENTS: pydantic==2.5.0 pydantic-settings==2.1.0 sqlalchemy asyncpg psycopg2-binary bcrypt minio apache-airflow-providers-docker
+      AIRFLOW__CORE__FERNET_KEY: "hHZDFy62ombK2mc_PoSAHOmiuRS5_s1V8kD-cKAPdxI="
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -68,6 +70,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@postgres-airflow:5432/${AIRFLOW_DB_NAME}
       _PIP_ADDITIONAL_REQUIREMENTS: pydantic-settings sqlalchemy asyncpg psycopg2-binary bcrypt torch torchvision minio apache-airflow-providers-docker
+      AIRFLOW__CORE__FERNET_KEY: "hHZDFy62ombK2mc_PoSAHOmiuRS5_s1V8kD-cKAPdxI="
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -78,6 +81,30 @@ services:
       - ./wagon_classification:/data
       - /var/run/docker.sock:/var/run/docker.sock
     command: scheduler
+    restart: unless-stopped
+    networks:
+      - airflow_network
+
+  airflow-worker:
+    image: apache/airflow:2.8.1-python3.11
+    depends_on:
+      - postgres-airflow
+      - redis
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@postgres-airflow:5432/${AIRFLOW_DB_NAME}
+      _PIP_ADDITIONAL_REQUIREMENTS: pydantic-settings sqlalchemy asyncpg psycopg2-binary bcrypt torch torchvision minio apache-airflow-providers-docker
+      AIRFLOW__CORE__FERNET_KEY: "hHZDFy62ombK2mc_PoSAHOmiuRS5_s1V8kD-cKAPdxI="
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./app:/opt/airflow/app
+      - ./models:/opt/airflow/models
+      - ./scripts:/opt/airflow/scripts
+      - ./wagon_classification:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: celery worker
     restart: unless-stopped
     networks:
       - airflow_network

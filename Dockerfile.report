@@ -1,0 +1,7 @@
+FROM python:3.11-slim
+
+COPY scripts/daily_report.py /app/daily_report.py
+
+RUN pip install --quiet psycopg2-binary requests
+
+CMD ["python", "/app/daily_report.py"]
